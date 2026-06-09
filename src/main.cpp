@@ -67,9 +67,12 @@ public:
     }
 
     void updateCardPositions() {
+        float spacing = (cards.size() > 2) ? 100.f : 140.f;
+        float shiftX = (cards.size() > 2) ? (cards.size() - 2) * 30.f : 0.f;
+
         for (size_t i = 0; i < cards.size(); ++i) {
-            float xOffset = i * 120.f;
-            cards[i].targetPos = sf::Vector2f(startPos.x + xOffset, startPos.y);
+            float xOffset = i * spacing;
+            cards[i].targetPos = sf::Vector2f(startPos.x + xOffset - shiftX, startPos.y);
             cards[i].isAnimating = true;
         }
     }
