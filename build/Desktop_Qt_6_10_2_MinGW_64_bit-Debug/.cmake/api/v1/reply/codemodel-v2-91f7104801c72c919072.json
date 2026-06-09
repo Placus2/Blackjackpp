@@ -27,7 +27,7 @@
 					[
 						0
 					],
-					"name" : "TestSfml",
+					"name" : "BLACKJACKPP",
 					"targetIndexes" : 
 					[
 						0
@@ -38,9 +38,9 @@
 			[
 				{
 					"directoryIndex" : 0,
-					"id" : "TestSfml::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-TestSfml-Debug-f95e53c20f8aba04b41d.json",
-					"name" : "TestSfml",
+					"id" : "BLACKJACKPP::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-BLACKJACKPP-Debug-4ebc52170bc68415bb68.json",
+					"name" : "BLACKJACKPP",
 					"projectIndex" : 0
 				}
 			]

@@ -2,10 +2,10 @@
 	"artifacts" : 
 	[
 		{
-			"path" : "TestSfml.exe"
+			"path" : "BLACKJACKPP.exe"
 		},
 		{
-			"path" : "TestSfml.pdb"
+			"path" : "BLACKJACKPP.pdb"
 		}
 	],
 	"backtrace" : 1,
@@ -82,7 +82,7 @@
 			]
 		}
 	],
-	"id" : "TestSfml::@6890427a1f51a3e7e1df",
+	"id" : "BLACKJACKPP::@6890427a1f51a3e7e1df",
 	"link" : 
 	{
 		"commandFragments" : 
@@ -117,8 +117,8 @@
 		],
 		"language" : "CXX"
 	},
-	"name" : "TestSfml",
-	"nameOnDisk" : "TestSfml.exe",
+	"name" : "BLACKJACKPP",
+	"nameOnDisk" : "BLACKJACKPP.exe",
 	"paths" : 
 	{
 		"build" : ".",

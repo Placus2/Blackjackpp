@@ -2,6 +2,42 @@
 	"entries" : 
 	[
 		{
+			"name" : "BLACKJACKPP_BINARY_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "C:/Users/Marcin/Desktop/BLACKJACKPP/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug"
+		},
+		{
+			"name" : "BLACKJACKPP_IS_TOP_LEVEL",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "ON"
+		},
+		{
+			"name" : "BLACKJACKPP_SOURCE_DIR",
+			"properties" : 
+			[
+				{
+					"name" : "HELPSTRING",
+					"value" : "Value Computed by CMake"
+				}
+			],
+			"type" : "STATIC",
+			"value" : "C:/Users/Marcin/Desktop/BLACKJACKPP"
+		},
+		{
 			"name" : "CMAKE_ADDR2LINE",
 			"properties" : 
 			[
@@ -807,7 +843,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "TestSfml"
+			"value" : "BLACKJACKPP"
 		},
 		{
 			"name" : "CMAKE_RANLIB",

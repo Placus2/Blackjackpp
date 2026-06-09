@@ -104,7 +104,7 @@ private:
     sf::Sprite deckSprite;
 public:
     Deck() {
-        deckSprite.setTexture(texManager.get("textures/cardback/cardBackBlue.png"));
+        deckSprite.setTexture(texManager.get("textures/cardback/cardBackRed.png"));
         deckSprite.setPosition(850.f, 320.f);
         deckSprite.setScale(0.3f, 0.3f);
     }
@@ -125,7 +125,7 @@ public:
                 std::string path = "textures/" + folders[s] + "/card" + suits[s] + "_" + ranks[r] + ".png";
                 c.frontSprite.setTexture(texManager.get(path));
                 c.frontSprite.setScale(0.3f, 0.3f);
-                c.backSprite.setTexture(texManager.get("textures/cardback/cardBackBlue.png"));
+                c.backSprite.setTexture(texManager.get("textures/cardback/cardBackRed.png"));
                 c.backSprite.setScale(0.3f, 0.3f);
 
                 cards.push_back(c);
@@ -162,13 +162,13 @@ int main() {
     window.setFramerateLimit(60);
 
     sf::Font font;
-    if (!font.loadFromFile("C:/Windows/Fonts/arial.ttf")) {
+    if (!font.loadFromFile("textures/arial.ttf")) {
         std::cerr << "Blad: Nie znaleziono textures/arial.ttf!" << std::endl;
         return -1;
     }
 
     sf::Sprite backgroundSprite;
-    backgroundSprite.setTexture(texManager.get("textures/Backgrounds/background_1.png"));
+    backgroundSprite.setTexture(texManager.get("textures/Backgrounds/background_2.png"));
     backgroundSprite.setScale(1024.f / 934.f, 768.f / 523.f);
 
     Deck deck;
@@ -180,7 +180,7 @@ int main() {
     bool isHardMode = false;
 
     // Ekonomia gry
-    int balance = 100;
+    int balance = 10000;
     int currentBet = 0;
     int activeHandIndex = 0;
 
@@ -233,18 +233,22 @@ int main() {
                     if (event.key.code == sf::Keyboard::Num3 && balance >= 10) { currentBet += 10; balance -= 10; }
                     if (event.key.code == sf::Keyboard::Num4 && balance >= 25) { currentBet += 25; balance -= 25; }
                     if (event.key.code == sf::Keyboard::Num5 && balance >= 100) { currentBet += 100; balance -= 100; }
+                    if (event.key.code == sf::Keyboard::Num6 && balance >= 500) { currentBet += 500; balance -= 500; }
+                    if (event.key.code == sf::Keyboard::Num7 && balance >= 1000) { currentBet += 1000; balance -= 1000; }
 
                     if (event.key.code == sf::Keyboard::Backspace) {
                         balance += currentBet;
                         currentBet = 0;
                     }
-
+                    if (event.key.code == sf::Keyboard::Escape){
+                        state = MENU;
+                    }
                     if (event.key.code == sf::Keyboard::Enter && currentBet > 0) {
                         startRound();
                     }
 
                     if (event.key.code == sf::Keyboard::B && balance == 0 && currentBet == 0) {
-                        balance = 100;
+                        balance = 10000;
                     }
                 }
                 else if (state == PLAYER_TURN && !isAnyAnimating) {
@@ -354,10 +358,11 @@ int main() {
         }
         else if (state == BETTING) {
             uiText.setString(ecoStr + "ZAMIAN ZETONOW:\n"
-                                      "[1] $1\n[2] $5\n[3] $10\n[4] $25\n[5] $100\n\n"
+                                      "[1] $1\n[2] $5\n[3] $10\n[4] $25\n[5] $100\n[6] $500\n[7] $1000\n\n"
                                       "[Backspace] Cofnij zaklad\n"
                                       "[Enter] Rozdaj Karty\n"
-                             + (balance == 0 && currentBet == 0 ? "\n[B] Bankructwo! Wcisnij by odzyskac $100" : ""));
+                                      "[Escape] Powrot \n"
+                             + (balance == 0 && currentBet == 0 ? "\n[B] Bankructwo! Wcisnij by odzyskac $10000" : ""));
             uiText.setPosition(350.f, 250.f);
             window.draw(uiText);
         }
