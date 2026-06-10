@@ -56,6 +56,34 @@ build CMakeFiles/BLACKJACKPP.dir/src/main.cpp.obj: CXX_COMPILER__BLACKJACKPP_uns
   OBJECT_DIR = CMakeFiles\BLACKJACKPP.dir
   OBJECT_FILE_DIR = CMakeFiles\BLACKJACKPP.dir\src
 
+build CMakeFiles/BLACKJACKPP.dir/src/TextureManager.cpp.obj: CXX_COMPILER__BLACKJACKPP_unscanned_Debug C$:/Users/Marcin/Desktop/BLACKJACKPP/src/TextureManager.cpp || cmake_object_order_depends_target_BLACKJACKPP
+  DEP_FILE = CMakeFiles\BLACKJACKPP.dir\src\TextureManager.cpp.obj.d
+  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/Marcin/Desktop/BLACKJACKPP/src -isystem C:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/include
+  OBJECT_DIR = CMakeFiles\BLACKJACKPP.dir
+  OBJECT_FILE_DIR = CMakeFiles\BLACKJACKPP.dir\src
+
+build CMakeFiles/BLACKJACKPP.dir/src/Card.cpp.obj: CXX_COMPILER__BLACKJACKPP_unscanned_Debug C$:/Users/Marcin/Desktop/BLACKJACKPP/src/Card.cpp || cmake_object_order_depends_target_BLACKJACKPP
+  DEP_FILE = CMakeFiles\BLACKJACKPP.dir\src\Card.cpp.obj.d
+  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/Marcin/Desktop/BLACKJACKPP/src -isystem C:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/include
+  OBJECT_DIR = CMakeFiles\BLACKJACKPP.dir
+  OBJECT_FILE_DIR = CMakeFiles\BLACKJACKPP.dir\src
+
+build CMakeFiles/BLACKJACKPP.dir/src/Hand.cpp.obj: CXX_COMPILER__BLACKJACKPP_unscanned_Debug C$:/Users/Marcin/Desktop/BLACKJACKPP/src/Hand.cpp || cmake_object_order_depends_target_BLACKJACKPP
+  DEP_FILE = CMakeFiles\BLACKJACKPP.dir\src\Hand.cpp.obj.d
+  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/Marcin/Desktop/BLACKJACKPP/src -isystem C:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/include
+  OBJECT_DIR = CMakeFiles\BLACKJACKPP.dir
+  OBJECT_FILE_DIR = CMakeFiles\BLACKJACKPP.dir\src
+
+build CMakeFiles/BLACKJACKPP.dir/src/Deck.cpp.obj: CXX_COMPILER__BLACKJACKPP_unscanned_Debug C$:/Users/Marcin/Desktop/BLACKJACKPP/src/Deck.cpp || cmake_object_order_depends_target_BLACKJACKPP
+  DEP_FILE = CMakeFiles\BLACKJACKPP.dir\src\Deck.cpp.obj.d
+  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/Marcin/Desktop/BLACKJACKPP/src -isystem C:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/include
+  OBJECT_DIR = CMakeFiles\BLACKJACKPP.dir
+  OBJECT_FILE_DIR = CMakeFiles\BLACKJACKPP.dir\src
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target BLACKJACKPP
@@ -64,7 +92,7 @@ build CMakeFiles/BLACKJACKPP.dir/src/main.cpp.obj: CXX_COMPILER__BLACKJACKPP_uns
 #############################################
 # Link the executable BLACKJACKPP.exe
 
-build BLACKJACKPP.exe: CXX_EXECUTABLE_LINKER__BLACKJACKPP_Debug CMakeFiles/BLACKJACKPP.dir/src/main.cpp.obj | C$:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/lib/libsfml-graphics-d.a C$:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/lib/libsfml-window-d.a C$:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/lib/libsfml-system-d.a
+build BLACKJACKPP.exe: CXX_EXECUTABLE_LINKER__BLACKJACKPP_Debug CMakeFiles/BLACKJACKPP.dir/src/main.cpp.obj CMakeFiles/BLACKJACKPP.dir/src/TextureManager.cpp.obj CMakeFiles/BLACKJACKPP.dir/src/Card.cpp.obj CMakeFiles/BLACKJACKPP.dir/src/Hand.cpp.obj CMakeFiles/BLACKJACKPP.dir/src/Deck.cpp.obj | C$:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/lib/libsfml-graphics-d.a C$:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/lib/libsfml-window-d.a C$:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/lib/libsfml-system-d.a
   FLAGS = -DQT_QML_DEBUG -g
   LINK_LIBRARIES = C:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/lib/libsfml-graphics-d.a  C:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/lib/libsfml-window-d.a  C:/Users/Marcin/Desktop/BLACKJACKPP/SFML-2.6.2-windows-gcc-13.1.0-mingw-64-bit/SFML-2.6.2/lib/libsfml-system-d.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\BLACKJACKPP.dir

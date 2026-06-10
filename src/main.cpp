@@ -2,166 +2,16 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <algorithm>
-#include <random>
-#include <map>
-#include <cmath>
 
-// --- MENEDŻER TEKSTUR ---
-class TextureManager {
-private:
-    std::map<std::string, sf::Texture> textures;
-public:
-    sf::Texture& get(const std::string& path) {
-        if (textures.find(path) == textures.end()) {
-            if (!textures[path].loadFromFile(path)) {
-                std::cerr << "Blad ladowania tekstury: " << path << std::endl;
-            }
-        }
-        return textures[path];
-    }
-};
+#include "TextureManager.h"
+#include "Card.h"
+#include "Hand.h"
+#include "Deck.h"
 
-TextureManager texManager;
-
-// --- STRUKTURY I KLASY ---
-struct Card {
-    int value;
-    std::string rank;
-    sf::Sprite frontSprite;
-    sf::Sprite backSprite;
-
-    sf::Vector2f currentPos;
-    sf::Vector2f targetPos;
-    bool isAnimating = false;
-
-    void updateAnimation(float dt) {
-        if (!isAnimating) return;
-
-        sf::Vector2f dir = targetPos - currentPos;
-        float distance = std::sqrt(dir.x * dir.x + dir.y * dir.y);
-        float speed = 2500.f;
-
-        if (distance < speed * dt) {
-            currentPos = targetPos;
-            isAnimating = false;
-        } else {
-            currentPos += (dir / distance) * speed * dt;
-        }
-
-        frontSprite.setPosition(currentPos);
-        backSprite.setPosition(currentPos);
-    }
-};
-
-class Hand {
-public:
-    std::vector<Card> cards;
-    sf::Vector2f startPos;
-
-    Hand(sf::Vector2f position) : startPos(position) {}
-
-    void addCard(Card c) {
-        cards.push_back(c);
-        updateCardPositions();
-    }
-
-    void updateCardPositions() {
-        float spacing = (cards.size() > 2) ? 100.f : 140.f;
-        float shiftX = (cards.size() > 2) ? (cards.size() - 2) * 30.f : 0.f;
-
-        for (size_t i = 0; i < cards.size(); ++i) {
-            float xOffset = i * spacing;
-            cards[i].targetPos = sf::Vector2f(startPos.x + xOffset - shiftX, startPos.y);
-            cards[i].isAnimating = true;
-        }
-    }
-
-    int getTotal() const {
-        int sum = 0, aces = 0;
-        for (const auto& c : cards) {
-            sum += c.value;
-            if (c.rank == "A") aces++;
-        }
-        while (sum > 21 && aces > 0) {
-            sum -= 10;
-            aces--;
-        }
-        return sum;
-    }
-
-    void draw(sf::RenderWindow& window, bool hideFirstCard = false) {
-        for (size_t i = 0; i < cards.size(); ++i) {
-            if (i == 0 && hideFirstCard) {
-                window.draw(cards[i].backSprite);
-            } else {
-                window.draw(cards[i].frontSprite);
-            }
-        }
-    }
-};
-
-class Deck {
-private:
-    std::vector<Card> cards;
-    sf::Sprite deckSprite;
-public:
-    Deck() {
-        deckSprite.setTexture(texManager.get("textures/cardback/cardBackRed.png"));
-        deckSprite.setPosition(850.f, 320.f);
-        deckSprite.setScale(0.3f, 0.3f);
-    }
-
-    void reset() {
-        cards.clear();
-        std::string folders[] = {"club", "diamond", "heart", "spade"};
-        std::string suits[] = {"Clubs", "Diamonds", "Hearts", "Spades"};
-        std::string ranks[] = {"2","3","4","5","6","7","8","9","10","J","Q","K","A"};
-        int values[] = {2,3,4,5,6,7,8,9,10,10,10,10,11};
-
-        for (int s = 0; s < 4; ++s) {
-            for (int r = 0; r < 13; ++r) {
-                Card c;
-                c.value = values[r];
-                c.rank = ranks[r];
-
-                std::string path = "textures/" + folders[s] + "/card" + suits[s] + "_" + ranks[r] + ".png";
-                c.frontSprite.setTexture(texManager.get(path));
-                c.frontSprite.setScale(0.3f, 0.3f);
-                c.backSprite.setTexture(texManager.get("textures/cardback/cardBackRed.png"));
-                c.backSprite.setScale(0.3f, 0.3f);
-
-                cards.push_back(c);
-            }
-        }
-        shuffle();
-    }
-
-    void shuffle() {
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::shuffle(cards.begin(), cards.end(), g);
-    }
-
-    Card drawCard() {
-        Card c = cards.back();
-        cards.pop_back();
-        c.currentPos = deckSprite.getPosition();
-        c.frontSprite.setPosition(c.currentPos);
-        c.backSprite.setPosition(c.currentPos);
-        return c;
-    }
-
-    void draw(sf::RenderWindow& window) {
-        if (!cards.empty()) window.draw(deckSprite);
-    }
-};
-
-// --- LOGIKA GRY ---
 enum GameState { MENU, BETTING, PLAYER_TURN, DEALER_TURN, GAME_OVER };
 
 int main() {
-    sf::RenderWindow window(sf::VideoMode(1024, 768), "Wizualny Blackjack");
+    sf::RenderWindow window(sf::VideoMode(1024, 768), "BLACKJACK PP");
     window.setFramerateLimit(60);
 
     sf::Font font;
@@ -182,10 +32,10 @@ int main() {
     std::string resultMessage = "";
     bool isHardMode = false;
 
-    // Ekonomia gry
     int balance = 10000;
     int currentBet = 0;
     int activeHandIndex = 0;
+    bool lifelineUsed = false;
 
     sf::Text uiText("", font, 20);
     uiText.setFillColor(sf::Color::White);
@@ -199,6 +49,7 @@ int main() {
         deck.reset();
         playerHands.clear();
         dealerHand.cards.clear();
+        lifelineUsed = false;
 
         playerHands.push_back(Hand(sf::Vector2f(350.f, 500.f)));
 
@@ -262,10 +113,24 @@ int main() {
 
                     if (event.key.code == sf::Keyboard::H) {
                         currentHand.addCard(deck.drawCard());
-                        if (currentHand.getTotal() > 21) activeHandIndex++;
+                        if (currentHand.getTotal() > 21) {
+                            if (lifelineUsed || balance < 25){
+                                activeHandIndex++;
+                            }
+                        }
                     }
                     else if (event.key.code == sf::Keyboard::S) {
                         activeHandIndex++;
+                    }
+                    else if (event.key.code == sf::Keyboard::L && currentHand.getTotal() > 21 && !lifelineUsed && balance >=25){
+                        balance -= 25;
+                        lifelineUsed = true;
+                        Card lifelineCard = deck.drawCard();
+                        lifelineCard.isSubstracting = true;
+                        currentHand.addCard(lifelineCard);
+                        if (currentHand.getTotal() > 21){
+                            activeHandIndex++;
+                        }
                     }
                     else if (canSplit && event.key.code == sf::Keyboard::P) {
                         balance -= currentBet;
@@ -298,12 +163,10 @@ int main() {
             }
         }
 
-        // --- AKTUALIZACJA ANIMACJI ---
         for (auto& c : dealerHand.cards) c.updateAnimation(dt);
         for (auto& h : playerHands)
             for (auto& c : h.cards) c.updateAnimation(dt);
 
-        // --- LOGIKA KRUPIERA ---
         if (state == DEALER_TURN && !isAnyAnimating) {
             dealerTimer += dt;
             if (dealerTimer >= 0.8f) {
@@ -317,7 +180,6 @@ int main() {
             }
         }
 
-        // --- ROZLICZENIE ZAKŁADÓW ---
         if (state == GAME_OVER && resultMessage.empty()) {
             int dTotal = dealerHand.getTotal();
 
@@ -346,7 +208,6 @@ int main() {
             }
         }
 
-        // --- RYSOWANIE ---
         window.clear();
         window.draw(backgroundSprite);
 
@@ -391,10 +252,18 @@ int main() {
                 if (isAnyAnimating) {
                     statusStr += "Rozdawanie...";
                 } else {
+                    if (playerHands[activeHandIndex].getTotal() > 21){
+                        statusStr += "PRZEKROCZONO 21 PUNKTOW! \n";
+                        if (!lifelineUsed && balance >= 25){
+                            statusStr += "[L] Kup kolo ratunkowe (-25$)\n";
+                        }
+                        statusStr += "[S] Akcjeptuj przegrana";
+                    }else{
                     statusStr += "Akcja:\n[H] Dobierz\n[S] Czekaj\n";
                     if (playerHands.size() == 1 && playerHands[0].cards.size() == 2 &&
                         playerHands[0].cards[0].value == playerHands[0].cards[1].value && balance >= currentBet) {
                         statusStr += "[P] Podziel (-$" + std::to_string(currentBet) + ")\n";
+                        }
                     }
                 }
             } else if (state == GAME_OVER) {

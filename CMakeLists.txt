@@ -9,7 +9,21 @@ set(SFML_DIR "${CMAKE_CURRENT_SOURCE_DIR}/SFML-2.6.2-windows-gcc-13.1.0-mingw-64
 
 find_package(SFML 2.6 COMPONENTS graphics window system REQUIRED)
 
-add_executable(BLACKJACKPP src/main.cpp)
+add_executable(BLACKJACKPP
+    src/main.cpp
+    src/TextureManager.cpp
+    src/Card.cpp
+    src/Hand.cpp
+    src/Deck.cpp
+    src/TextureManager.h
+    src/TextureManager.cpp
+    src/Card.h
+    src/Card.cpp
+    src/Hand.h
+    src/Hand.cpp
+    src/Deck.h
+    src/Deck.cpp
+)
 
 target_include_directories(BLACKJACKPP PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
