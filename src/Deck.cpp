@@ -3,10 +3,10 @@
 #include <random>
 #include <algorithm>
 
-Deck::Deck() {
-    deckSprite.setTexture(texManager.get("textures/cardback/cardBackRed.png"));
-    deckSprite.setPosition(850.f, 320.f);
-    deckSprite.setScale(0.3f, 0.3f);
+Deck::Deck() : cardBackPath("textures/cardback/cardBackRed.png") {
+    deckSprite.setTexture(texManager.get(cardBackPath));
+    deckSprite.setPosition(730.f, 150.f);
+    deckSprite.setScale(0.15f, 0.15f);
 }
 
 void Deck::reset() {
@@ -23,10 +23,11 @@ void Deck::reset() {
             c.rank = ranks[r];
 
             std::string path = "textures/" + folders[s] + "/card" + suits[s] + "_" + ranks[r] + ".png";
+            c.texturePath = path;
             c.frontSprite.setTexture(texManager.get(path));
-            c.frontSprite.setScale(0.3f, 0.3f);
-            c.backSprite.setTexture(texManager.get("textures/cardback/cardBackRed.png"));
-            c.backSprite.setScale(0.3f, 0.3f);
+            c.frontSprite.setScale(0.15f, 0.15f);
+            c.backSprite.setTexture(texManager.get(cardBackPath));
+            c.backSprite.setScale(0.15f, 0.15f);
 
             cards.push_back(c);
         }
@@ -53,8 +54,8 @@ void Deck::activatePeek(){
     if (cards.empty()) return;
     peekSprite = cards.back().frontSprite;
     sf::Vector2f deckPos = deckSprite.getPosition();
-    peekSprite.setPosition(deckPos.x - 18.f, deckPos.y - 22.f);
-    peekSprite.setScale(0.3f, 0.3f);
+    peekSprite.setPosition(deckPos.x - 9.f, deckPos.y - 11.f);
+    peekSprite.setScale(0.15f, 0.15f);
     peekSprite.setColor(sf::Color(255, 255, 255, 180));
     isPeeking = true;
 }
@@ -72,4 +73,9 @@ void Deck::draw(sf::RenderWindow& window) {
             window.draw(peekSprite);
         }
     }
+}
+
+void Deck::setCardBackPath(const std::string& path) {
+    cardBackPath = path;
+    deckSprite.setTexture(texManager.get(cardBackPath));
 }

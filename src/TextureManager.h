@@ -8,6 +8,8 @@ private:
     std::map<std::string, sf::Texture> textures;
 public:
     sf::Texture& get(const std::string& path);
+    sf::Texture& getInverted(const std::string& path);
+    void clear();
 };
 
 extern TextureManager texManager;

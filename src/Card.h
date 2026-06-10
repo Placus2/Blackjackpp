@@ -5,6 +5,7 @@
 struct Card {
     int value;
     std::string rank;
+    std::string texturePath;
     sf::Sprite frontSprite;
     sf::Sprite backSprite;
 

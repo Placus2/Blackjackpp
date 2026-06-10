@@ -1,0 +1,5 @@
+5000000
+textures/Backgrounds/background_2.png
+textures/Tables/table_green.png.png
+textures/cardback/cardBackRed.png
+0

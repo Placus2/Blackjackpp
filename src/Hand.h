@@ -11,5 +11,5 @@ public:
     void addCard(Card c);
     void updateCardPositions();
     int getTotal() const;
-    void draw(sf::RenderWindow& window, bool hideFirstCard = false);
+    void draw(sf::RenderWindow& window, bool hideFirstCard = false, bool transparentFirstCard = false);
 };

@@ -8,6 +8,7 @@ private:
     sf::Sprite deckSprite;
     bool isPeeking = false;
     sf::Sprite peekSprite;
+    std::string cardBackPath;
 public:
     Deck();
     void reset();
@@ -18,4 +19,7 @@ public:
     void deactivatePeek();
     std::string getPeekDescription() const;
     bool getIsPeeking() const {return isPeeking; }
+    
+    void setCardBackPath(const std::string& path);
+    std::string getCardBackPath() const { return cardBackPath; }
 };

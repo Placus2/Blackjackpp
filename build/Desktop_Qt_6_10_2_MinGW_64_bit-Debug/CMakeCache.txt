@@ -105,7 +105,7 @@ CMAKE_GENERATOR:STRING=Ninja
 CMAKE_GNUtoMS:BOOL=OFF
 
 //Install path prefix, prepended onto install directories.
-CMAKE_INSTALL_PREFIX:PATH=C:/Program Files (x86)/TestSfml
+CMAKE_INSTALL_PREFIX:PATH=C:/Program Files (x86)/BLACKJACKPP
 
 //Path to a program.
 CMAKE_LINKER:FILEPATH=C:/Qt/Tools/mingw1310_64/bin/ld.exe
@@ -260,15 +260,6 @@ QT_QMAKE_EXECUTABLE:FILEPATH=C:/Qt/6.10.2/mingw_64/bin/qmake.exe
 
 //Path to a file.
 SFML_DOC_DIR:PATH=SFML_DOC_DIR-NOTFOUND
-
-//Value Computed by CMake
-TestSfml_BINARY_DIR:STATIC=C:/Users/Marcin/Desktop/BLACKJACKPP/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug
-
-//Value Computed by CMake
-TestSfml_IS_TOP_LEVEL:STATIC=ON
-
-//Value Computed by CMake
-TestSfml_SOURCE_DIR:STATIC=C:/Users/Marcin/Desktop/BLACKJACKPP
 
 
 ########################

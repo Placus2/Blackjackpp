@@ -8,12 +8,17 @@ void Hand::addCard(Card c) {
 }
 
 void Hand::updateCardPositions() {
-    float spacing = (cards.size() > 2) ? 100.f : 140.f;
-    float shiftX = (cards.size() > 2) ? (cards.size() - 2) * 30.f : 0.f;
+    float spacing = 60.f;
+    float max_width = 150.f;
+    if (cards.size() > 1) {
+        float calculated_spacing = max_width / (cards.size() - 1);
+        if (calculated_spacing < spacing) {
+            spacing = calculated_spacing;
+        }
+    }
 
     for (size_t i = 0; i < cards.size(); ++i) {
-        float xOffset = i * spacing;
-        cards[i].targetPos = sf::Vector2f(startPos.x + xOffset - shiftX, startPos.y);
+        cards[i].targetPos = sf::Vector2f(startPos.x + i * spacing, startPos.y);
         cards[i].isAnimating = true;
     }
 }
@@ -35,12 +40,19 @@ int Hand::getTotal() const {
     return sum;
 }
 
-void Hand::draw(sf::RenderWindow& window, bool hideFirstCard) {
+void Hand::draw(sf::RenderWindow& window, bool hideFirstCard, bool transparentFirstCard) {
     for (size_t i = 0; i < cards.size(); ++i) {
         if (i == 0 && hideFirstCard) {
             window.draw(cards[i].backSprite);
         } else {
-            window.draw(cards[i].frontSprite);
+            if (i == 0 && transparentFirstCard) {
+                sf::Color originalColor = cards[i].frontSprite.getColor();
+                cards[i].frontSprite.setColor(sf::Color(255, 255, 255, 180));
+                window.draw(cards[i].frontSprite);
+                cards[i].frontSprite.setColor(originalColor);
+            } else {
+                window.draw(cards[i].frontSprite);
+            }
         }
     }
 }
