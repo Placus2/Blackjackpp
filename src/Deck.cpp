@@ -43,12 +43,33 @@ void Deck::shuffle() {
 Card Deck::drawCard() {
     Card c = cards.back();
     cards.pop_back();
+    deactivatePeek();
     c.currentPos = deckSprite.getPosition();
     c.frontSprite.setPosition(c.currentPos);
     c.backSprite.setPosition(c.currentPos);
     return c;
 }
-
+void Deck::activatePeek(){
+    if (cards.empty()) return;
+    peekSprite = cards.back().frontSprite;
+    sf::Vector2f deckPos = deckSprite.getPosition();
+    peekSprite.setPosition(deckPos.x - 18.f, deckPos.y - 22.f);
+    peekSprite.setScale(0.3f, 0.3f);
+    peekSprite.setColor(sf::Color(255, 255, 255, 180));
+    isPeeking = true;
+}
+void Deck::deactivatePeek(){
+    isPeeking = false;
+}
+std::string Deck::getPeekDescription() const {
+    if (!isPeeking || cards.empty()) return "";
+    return cards.back().rank;
+}
 void Deck::draw(sf::RenderWindow& window) {
-    if (!cards.empty()) window.draw(deckSprite);
+    if (!cards.empty()) {
+        window.draw(deckSprite);
+        if (isPeeking) {
+            window.draw(peekSprite);
+        }
+    }
 }

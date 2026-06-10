@@ -36,6 +36,7 @@ int main() {
     int currentBet = 0;
     int activeHandIndex = 0;
     bool lifelineUsed = false;
+    bool peekUsed = false;
 
     sf::Text uiText("", font, 20);
     uiText.setFillColor(sf::Color::White);
@@ -50,6 +51,7 @@ int main() {
         playerHands.clear();
         dealerHand.cards.clear();
         lifelineUsed = false;
+        peekUsed = false;
 
         playerHands.push_back(Hand(sf::Vector2f(350.f, 500.f)));
 
@@ -132,9 +134,14 @@ int main() {
                             activeHandIndex++;
                         }
                     }
+                    else if (event.key.code == sf::Keyboard::K && !peekUsed && balance >= 25 && currentHand.getTotal() <= 21) {
+                        balance -= 25;
+                        peekUsed = true;
+                        deck.activatePeek();
+                    }
                     else if (canSplit && event.key.code == sf::Keyboard::P) {
                         balance -= currentBet;
-
+                        currentBet *= 2;
                         Card splitCard = currentHand.cards.back();
                         currentHand.cards.pop_back();
 
@@ -259,7 +266,14 @@ int main() {
                         }
                         statusStr += "[S] Akcjeptuj przegrana";
                     }else{
-                    statusStr += "Akcja:\n[H] Dobierz\n[S] Czekaj\n";
+                         statusStr += "Akcja:\n[H] Dobierz\n[S] Czekaj\n";
+                        if (!peekUsed && balance >= 25) {
+                            statusStr += "[K] Podejrzyj nastepna karte (-$25)\n";
+                        } else if (deck.getIsPeeking()) {
+                            statusStr += "Nastepna karta: [ "
+                                         + deck.getPeekDescription()
+                                         + " ]\n";
+                        }
                     if (playerHands.size() == 1 && playerHands[0].cards.size() == 2 &&
                         playerHands[0].cards[0].value == playerHands[0].cards[1].value && balance >= currentBet) {
                         statusStr += "[P] Podziel (-$" + std::to_string(currentBet) + ")\n";
