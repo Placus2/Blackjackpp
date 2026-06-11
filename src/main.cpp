@@ -104,6 +104,7 @@ sf::View getLetterboxView(sf::View view, int windowWidth, int windowHeight) {
 
 // ZAPIS STANU GRY I USTAWIEN DO PLIKU
 void saveGame(const std::string& playerName, int balance, const std::string& bgPath, const std::string& tablePath, const std::string& cbPath, bool isFullscreen) {
+    if (playerName.empty()) return;
     std::filesystem::create_directories("Save");
     std::ofstream file("Save/savegame_" + playerName + ".txt");
     if (file.is_open()) {
@@ -176,19 +177,30 @@ int main() {
     auto createProfileBtn = std::make_shared<Button>(362.f, 600.f, 300.f, 50.f, "NEW PROFILE", tempFont, 20);
     createProfileBtn->setDrawState(PROFILE_SELECT);
     
+    auto backToMenuFromProfileBtn = std::make_shared<Button>(362.f, 660.f, 300.f, 50.f, "BACK TO MENU", tempFont, 20);
+    backToMenuFromProfileBtn->setDrawState(PROFILE_SELECT);
+
+    auto backFromProfileCreateBtn = std::make_shared<Button>(362.f, 660.f, 300.f, 50.f, "BACK", tempFont, 20);
+    backFromProfileCreateBtn->setDrawState(PROFILE_CREATE);
+    
     std::vector<std::shared_ptr<Button>> profileBtns;
+    std::vector<std::shared_ptr<Button>> deleteProfileBtns;
     auto rebuildProfileButtons = [&]() {
         profileBtns.clear();
+        deleteProfileBtns.clear();
         auto scores = loadHighscores();
         float startY = 150.f;
-        // WYSWIETLANIE NAJLEPSZYCH 5 GRACZY
-        for (size_t i = 0; i < scores.size() && i < 5; ++i) {
+        for (size_t i = 0; i < scores.size() && i < 5; ++i) { // Pokazuje maks 5 profili
             auto btn = std::make_shared<Button>(362.f, startY + i * 70.f, 300.f, 50.f, scores[i].name, tempFont, 20);
             btn->setDrawState(PROFILE_SELECT);
             profileBtns.push_back(btn);
+
+            auto delBtn = std::make_shared<Button>(670.f, startY + i * 70.f, 50.f, 50.f, "X", tempFont, 20);
+            delBtn->setDrawState(PROFILE_SELECT);
+            deleteProfileBtns.push_back(delBtn);
         }
     };
-    rebuildProfileButtons();
+    rebuildProfileButtons();;
     // WCZYTYWANIE DZWIEKOW
     sf::SoundBuffer fanBuffer;
     sf::Sound fanSound;
@@ -348,8 +360,7 @@ int main() {
 
     auto fullscreenBtn = std::make_shared<Button>(362.f, 430.f, 300.f, 50.f, "[ ] Fullscreen", font, 18);
     fullscreenBtn->setDrawState(SETTINGS);
-    auto resetProgressBtn = std::make_shared<Button>(362.f, 500.f, 300.f, 50.f, "Reset Progress ($1000)", font, 18);
-    resetProgressBtn->setDrawState(SETTINGS);
+    // Usunięto resetProgressBtn
     auto backFromSettingsBtn = std::make_shared<Button>(362.f, 570.f, 300.f, 50.f, "Back to Menu", font, 18);
     backFromSettingsBtn->setDrawState(SETTINGS);
 
@@ -443,7 +454,10 @@ int main() {
         gameObjects.clear();
 
         for (const auto& btn : profileBtns) gameObjects.push_back(btn);
+        for (const auto& btn : deleteProfileBtns) gameObjects.push_back(btn);
         gameObjects.push_back(createProfileBtn);
+        gameObjects.push_back(backToMenuFromProfileBtn);
+        gameObjects.push_back(backFromProfileCreateBtn);
         
         gameObjects.push_back(deckPtr);
         gameObjects.push_back(dealerHandPtr);
@@ -500,7 +514,6 @@ int main() {
         gameObjects.push_back(cbBlueBtn);
         gameObjects.push_back(cbGreenBtn);
         gameObjects.push_back(fullscreenBtn);
-        gameObjects.push_back(resetProgressBtn);
         gameObjects.push_back(backFromSettingsBtn);
 
         gameObjects.push_back(leaderboardBackBtn);
@@ -684,6 +697,7 @@ int main() {
             bool mouseClicked = (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left);
 
             if (mouseClicked) {
+                bool needsRebuild = false;
                 //OBSLUGA KLIKNIEC
                 for (auto& obj : gameObjects) {
                     if (obj->shouldDraw(state)) {
@@ -694,7 +708,23 @@ int main() {
                                     if (btn == createProfileBtn) {
                                         typedName = "";
                                         state = PROFILE_CREATE;
+                                    } else if (btn == backToMenuFromProfileBtn) {
+                                        state = MENU;
+                                        needsRebuild = true;
                                     } else {
+                                        for (size_t i = 0; i < deleteProfileBtns.size(); ++i) {
+                                            if (btn == deleteProfileBtns[i]) {
+                                                std::string nameToRemove = profileBtns[i]->getTextString();
+                                                auto scores = loadHighscores();
+                                                scores.erase(std::remove_if(scores.begin(), scores.end(), [&](const Score& s){ return s.name == nameToRemove; }), scores.end());
+                                                saveHighscores(scores);
+                                                std::filesystem::remove("Save/savegame_" + nameToRemove + ".txt");
+                                                needsRebuild = true;
+                                                break;
+                                            }
+                                        }
+                                        if (needsRebuild) break;
+
                                         for (const auto& pBtn : profileBtns) {
                                             if (btn == pBtn) {
                                                 currentPlayerName = btn->getTextString();
@@ -717,6 +747,11 @@ int main() {
                                     } else {
                                         state = PROFILE_SELECT;
                                     }
+                                    needsRebuild = true;
+                                }
+                                else if (btn == backFromProfileCreateBtn) {
+                                    state = profileBtns.empty() ? MENU : PROFILE_SELECT;
+                                    needsRebuild = true;
                                 }
                                 else if (btn == settingsBtn) {
                                     state = SETTINGS;
@@ -730,6 +765,7 @@ int main() {
                                 }
                                 else if (btn == leaderboardBackBtn) {
                                     state = MENU;
+                                    needsRebuild = true;
                                 }
                                 else if (btn == modeClassicBtn) {
                                     hasSkillsMode = false;
@@ -753,6 +789,7 @@ int main() {
                                 }
                                 else if (btn == backToMenuFromOptionsBtn) {
                                     state = MENU;
+                                    needsRebuild = true;
                                 }
                                 else if (btn == chip1 && balance >= 1) { currentBet += 1; balance -= 1; handleSound.play(); }
                                 else if (btn == chip5 && balance >= 5) { currentBet += 5; balance -= 5; handleSound.play(); }
@@ -772,6 +809,7 @@ int main() {
                                 }
                                 else if (btn == backToMenuBtn) {
                                     state = MENU;
+                                    needsRebuild = true;
                                     saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
                                 }
                                 else if (btn == dealBtn && currentBet > 0) {
@@ -910,13 +948,9 @@ int main() {
                                     saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
                                     updateSettingsButtonLabels();
                                 }
-                                else if (btn == resetProgressBtn) {
-                                    balance = 1000;
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                                    updateSettingsButtonLabels();
-                                }
                                 else if (btn == backFromSettingsBtn) {
                                     state = MENU;
+                                    needsRebuild = true;
                                 }
                                 else if (btn == newRoundBtn) {
                                     currentBet = 0;
@@ -926,6 +960,11 @@ int main() {
                             }
                         }
                     }
+                }
+                
+                if (needsRebuild) {
+                    rebuildProfileButtons();
+                    rebuildGameObjects();
                 }
 
                 if (state == PLAYER_TURN && activeHandIndex >= playerHands.size()) {
@@ -1013,6 +1052,9 @@ int main() {
             // ZAPIS GRY DO TABELI WYNIKOW I PLIKU SAVEGAME
             saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
             updateLeaderboard(currentPlayerName, balance);
+            
+            rebuildProfileButtons();
+            rebuildGameObjects();
         }
 
         window.clear();
