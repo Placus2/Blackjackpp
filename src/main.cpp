@@ -337,6 +337,9 @@ int main() {
     lifelineBtn->setDrawState(PLAYER_TURN);
     auto peekBtn = std::make_shared<Button>(842.f, 230.f, 150.f, 45.f, "Sneaky peeky -25$", font, 14);
     peekBtn->setDrawState(PLAYER_TURN);
+    // Inicjalizacja przycisku nowej umiejetnosci specjalnej "Zamiana kart"
+    auto swapBtn = std::make_shared<Button>(842.f, 290.f, 150.f, 45.f, "Zamiana kart -50$", font, 14);
+    swapBtn->setDrawState(PLAYER_TURN);
 
     auto peekDeckBtn = std::make_shared<Button>(842.f, 230.f, 150.f, 45.f, "Peek Deck", font, 16);
     peekDeckBtn->setDrawState(PLAYER_TURN);
@@ -436,6 +439,8 @@ int main() {
     int activeHandIndex = 0;
     bool lifelineUsed = false;
     bool peekUsed = false;
+    // Zmienna stanu okreslajaca, czy umiejetnosc zamiany kart zostala uzyta w danej rundzie
+    bool swapUsed = false;
     bool isPeekingChoiceActive = false;
     bool isDealerCardRevealed = false;
 
@@ -509,6 +514,7 @@ int main() {
 
         gameObjects.push_back(lifelineBtn);
         gameObjects.push_back(peekBtn);
+        gameObjects.push_back(swapBtn);
         gameObjects.push_back(peekDeckBtn);
         gameObjects.push_back(peekDealerBtn);
         gameObjects.push_back(cancelPeekBtn);
@@ -585,6 +591,8 @@ int main() {
         dealerHandPtr->cards.clear();
         lifelineUsed = false;
         peekUsed = false;
+        // Resetowanie stanu uzycia umiejetnosci zamiany kart na poczatku rundy
+        swapUsed = false;
         isPeekingChoiceActive = false;
         isDealerCardRevealed = false;
 
@@ -644,9 +652,14 @@ int main() {
                     int skillCost = std::max(1, currentBet / 4);
                     lifelineBtn->setText("Minus card -" + std::to_string(skillCost) + "$");
                     peekBtn->setText("Sneaky peeky -" + std::to_string(skillCost) + "$");
+                    
+                    // Obliczenie kosztu i aktualizacja przycisku zamiany kart
+                    int swapCost = std::max(1, currentBet / 2);
+                    swapBtn->setText("Zamiana kart -" + std::to_string(swapCost) + "$");
 
                     lifelineBtn->setEnabled(currentHand->getTotal() > 21 && !lifelineUsed && balance >= skillCost && !isAnyAnimating && !isPeekingChoiceActive);
                     peekBtn->setEnabled(!peekUsed && balance >= skillCost && currentHand->getTotal() <= 21 && !isAnyAnimating && !isPeekingChoiceActive);
+                    swapBtn->setEnabled(!swapUsed && balance >= swapCost && !isAnyAnimating && !isPeekingChoiceActive);
                     
                     if (isPeekingChoiceActive) {
                         peekDeckBtn->setVisible(true);
@@ -654,16 +667,19 @@ int main() {
                         cancelPeekBtn->setVisible(true);
                         lifelineBtn->setVisible(false);
                         peekBtn->setVisible(false);
+                        swapBtn->setVisible(false);
                     } else {
                         peekDeckBtn->setVisible(false);
                         peekDealerBtn->setVisible(false);
                         cancelPeekBtn->setVisible(false);
                         lifelineBtn->setVisible(true);
                         peekBtn->setVisible(true);
+                        swapBtn->setVisible(true);
                     }
                 } else {
                     lifelineBtn->setVisible(false);
                     peekBtn->setVisible(false);
+                    swapBtn->setVisible(false);
                     peekDeckBtn->setVisible(false);
                     peekDealerBtn->setVisible(false);
                     cancelPeekBtn->setVisible(false);
@@ -833,7 +849,11 @@ int main() {
                                         currentHand->addCard(deckPtr->drawCard());
                                         placeSound.play();
                                         if (currentHand->getTotal() > 21) {
-                                            if (!hasSkillsMode || lifelineUsed || balance < 25) {
+                                            int skillCost = std::max(1, currentBet / 4);
+                                            int swapCost = std::max(1, currentBet / 2);
+                                            bool canUseLifeline = !lifelineUsed && balance >= skillCost;
+                                            bool canUseSwap = !swapUsed && balance >= swapCost;
+                                            if (!hasSkillsMode || (!canUseLifeline && !canUseSwap)) {
                                                 activeHandIndex++;
                                             }
                                         }
@@ -865,6 +885,8 @@ int main() {
                                     }
                                     else if (hasSkillsMode) {
                                         int skillCost = std::max(1, currentBet / 4);
+                                        // Zdefiniowanie kosztu zamiany kart
+                                        int swapCost = std::max(1, currentBet / 2);
                                         if (isPeekingChoiceActive) {
                                             if (btn == peekDeckBtn && balance >= skillCost) {
                                                 balance -= skillCost;
@@ -898,6 +920,21 @@ int main() {
                                             }
                                             else if (btn == peekBtn && !peekUsed && balance >= skillCost && currentHand->getTotal() <= 21) {
                                                 isPeekingChoiceActive = true;
+                                            }
+                                            // Obsluga uzycia umiejetnosci "Zamiana kart" - zamiana kart gracza z krupierem
+                                            else if (btn == swapBtn && !swapUsed && balance >= swapCost) {
+                                                balance -= swapCost;
+                                                swapUsed = true;
+                                                std::swap(currentHand->cards, dealerHandPtr->cards);
+                                                currentHand->updateCardPositions();
+                                                dealerHandPtr->updateCardPositions();
+                                                handleSound.play();
+                                                if (currentHand->getTotal() > 21) {
+                                                    int currentSkillCost = std::max(1, currentBet / 4);
+                                                    if (!hasSkillsMode || lifelineUsed || balance < currentSkillCost) {
+                                                        activeHandIndex++;
+                                                    }
+                                                }
                                             }
                                         }
                                     }
