@@ -40,12 +40,16 @@ int Hand::getTotal() const {
     return sum;
 }
 
-void Hand::draw(sf::RenderWindow& window, bool hideFirstCard, bool transparentFirstCard) {
+void Hand::draw(sf::RenderWindow& window) {
+    draw(window, hideFirstCard, transparentFirstCard);
+}
+// RYSOWANIE KART
+void Hand::draw(sf::RenderWindow& window, bool hideFirstCardVal, bool transparentFirstCardVal) {
     for (size_t i = 0; i < cards.size(); ++i) {
-        if (i == 0 && hideFirstCard) {
+        if (i == 0 && hideFirstCardVal) {
             window.draw(cards[i].backSprite);
         } else {
-            if (i == 0 && transparentFirstCard) {
+            if (i == 0 && transparentFirstCardVal) {
                 sf::Color originalColor = cards[i].frontSprite.getColor();
                 cards[i].frontSprite.setColor(sf::Color(255, 255, 255, 180));
                 window.draw(cards[i].frontSprite);
@@ -56,3 +60,16 @@ void Hand::draw(sf::RenderWindow& window, bool hideFirstCard, bool transparentFi
         }
     }
 }
+
+// OKRESLANIE WIDOCZNOSCI TALII
+bool Hand::shouldDraw(GameState state) const {
+    return state != MENU && state != GAMEPLAY_OPTIONS && state != SETTINGS && state != LEADERBOARD && state != BETTING && state != PROFILE_SELECT && state != PROFILE_CREATE;
+}
+
+// AKTUALIZACJA ANIMACJI KART
+void Hand::update(float dt) {
+    for (auto& c : cards) {
+        c.updateAnimation(dt);
+    }
+}
+

@@ -12,4 +12,5 @@ public:
     void clear();
 };
 
+
 extern TextureManager texManager;

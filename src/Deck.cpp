@@ -79,3 +79,8 @@ void Deck::setCardBackPath(const std::string& path) {
     cardBackPath = path;
     deckSprite.setTexture(texManager.get(cardBackPath));
 }
+
+// CZY TALIA POWINNA BYC RYSOWANA
+bool Deck::shouldDraw(GameState state) const {
+    return state != MENU && state != GAMEPLAY_OPTIONS && state != SETTINGS && state != LEADERBOARD && state != PROFILE_SELECT && state != PROFILE_CREATE && state != GAME_OVER && state != BETTING;
+}

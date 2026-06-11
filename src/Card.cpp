@@ -6,13 +6,21 @@ void Card::updateAnimation(float dt) {
 
     sf::Vector2f dir = targetPos - currentPos;
     float distance = std::sqrt(dir.x * dir.x + dir.y * dir.y);
-    float speed = 2500.f;
+    float speed = 2500.f; // PREDKOSC
 
     if (distance < speed * dt) {
         currentPos = targetPos;
         isAnimating = false;
+        // RESETOWANIE ROTACJI
+        frontSprite.setRotation(0.f);
+        backSprite.setRotation(0.f);
     } else {
         currentPos += (dir / distance) * speed * dt;
+        
+        // ROTACJA KARTY
+        float rotSpeed = 360.f; // 360 stopni na sekunde
+        frontSprite.rotate(rotSpeed * dt);
+        backSprite.rotate(rotSpeed * dt);
     }
 
     frontSprite.setPosition(currentPos);

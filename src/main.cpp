@@ -5,6 +5,9 @@
 #include <string>
 #include <fstream>
 #include <filesystem>
+#include <memory>
+#include <algorithm>
+#include <cstdlib>
 
 #include "TextureManager.h"
 #include "Card.h"
@@ -12,7 +15,68 @@
 #include "Deck.h"
 #include "Button.h"
 
-enum GameState { MENU, GAMEPLAY_OPTIONS, BETTING, DEALING_START, PLAYER_TURN, DEALER_TURN, GAME_OVER, SETTINGS };
+// TABELA WYNIKÓW
+struct Score {
+    std::string name;
+    int value;
+};
+
+// NAZWA GRACZA
+std::string getPlayerName() {
+    const char* user = std::getenv("USER");
+    if (!user) user = std::getenv("USERNAME");
+    return user ? std::string(user) : "Player";
+}
+
+// ZAPIS WYNIKOW DO TABELI
+void saveHighscores(const std::vector<Score>& scores) {
+    std::filesystem::create_directories("Save");
+    std::ofstream file("Save/highscores.txt");
+    if (file.is_open()) {
+        for (const auto& s : scores) {
+            file << s.name << "\n" << s.value << "\n";
+        }
+        file.close();
+    }
+}
+
+// WCZYTYWANIE TABELI Z PLIKU
+std::vector<Score> loadHighscores() {
+    std::vector<Score> scores;
+    std::ifstream file("Save/highscores.txt");
+    if (file.is_open()) {
+        std::string nameLine, valueLine;
+        while (std::getline(file, nameLine) && std::getline(file, valueLine)) {
+            if (!nameLine.empty() && nameLine.back() == '\r') nameLine.pop_back();
+            if (!valueLine.empty() && valueLine.back() == '\r') valueLine.pop_back();
+            try {
+                Score s;
+                s.name = nameLine;
+                s.value = std::stoi(valueLine);
+                scores.push_back(s);
+            } catch (...) {}
+        }
+        file.close();
+    }
+    return scores;
+}
+
+// AKTUALIZOWANIE TABELI AKTUALNEGO GRACZA
+void updateLeaderboard(const std::string& playerName, int newBalance) {
+    auto scores = loadHighscores();
+    bool found = false;
+    for (auto& s : scores) {
+        if (s.name == playerName) {
+            s.value = newBalance;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        scores.push_back({playerName, newBalance});
+    }
+    saveHighscores(scores);
+}
 
 sf::View getLetterboxView(sf::View view, int windowWidth, int windowHeight) {
     float windowRatio = (float)windowWidth / (float)windowHeight;
@@ -38,21 +102,23 @@ sf::View getLetterboxView(sf::View view, int windowWidth, int windowHeight) {
     return view;
 }
 
-void saveGame(int balance, const std::string& bgPath, const std::string& tablePath, const std::string& cbPath, bool isFullscreen) {
+// ZAPIS STANU GRY I USTAWIEN DO PLIKU
+void saveGame(const std::string& playerName, int balance, const std::string& bgPath, const std::string& tablePath, const std::string& cbPath, bool isFullscreen) {
     std::filesystem::create_directories("Save");
-    std::ofstream file("Save/savegame.txt");
+    std::ofstream file("Save/savegame_" + playerName + ".txt");
     if (file.is_open()) {
-        file << balance << "\n";
         file << bgPath << "\n";
         file << tablePath << "\n";
         file << cbPath << "\n";
         file << (isFullscreen ? 1 : 0) << "\n";
         file.close();
     }
+    updateLeaderboard(playerName, balance);
 }
 
-void loadGame(int& balance, std::string& bgPath, std::string& tablePath, std::string& cbPath, bool& isFullscreen) {
-    std::ifstream file("Save/savegame.txt");
+// WCZYTYWANIE STANU GRY I USTAWIEN Z PLIKU (BRAK = DOMYSLNE)
+void loadGame(const std::string& playerName, int& balance, std::string& bgPath, std::string& tablePath, std::string& cbPath, bool& isFullscreen) {
+    std::ifstream file("Save/savegame_" + playerName + ".txt");
     bool success = false;
     if (file.is_open()) {
         std::vector<std::string> lines;
@@ -64,38 +130,66 @@ void loadGame(int& balance, std::string& bgPath, std::string& tablePath, std::st
             lines.push_back(line);
         }
         file.close();
-        if (lines.size() >= 5) {
+        if (lines.size() >= 4) {
             try {
-                balance = std::stoi(lines[0]);
-                bgPath = lines[1];
-                tablePath = lines[2];
-                cbPath = lines[3];
-                isFullscreen = (std::stoi(lines[4]) != 0);
+                bgPath = lines[0];
+                tablePath = lines[1];
+                cbPath = lines[2];
+                isFullscreen = (std::stoi(lines[3]) != 0);
                 success = true;
             } catch (...) {
                 success = false;
             }
         }
     }
+    
+    // ODCZYT WYNIKOW Z BAZY
+    auto scores = loadHighscores();
+    for (const auto& s : scores) {
+        if (s.name == playerName) {
+            balance = s.value;
+            break;
+        }
+    }
+    // DEFAULTOWE USTAWIENIA
     if (!success) {
-        balance = 1000;
         bgPath = "textures/Backgrounds/background_1.png";
         tablePath = "textures/Tables/table_green.png.png";
         cbPath = "textures/cardback/cardBackRed.png";
         isFullscreen = false;
-        saveGame(balance, bgPath, tablePath, cbPath, isFullscreen);
+        saveGame(playerName, balance, bgPath, tablePath, cbPath, isFullscreen);
     }
 }
 
 int main() {
+    std::string currentPlayerName = "";
+    std::string typedName = "";
     int balance = 1000;
     std::string currentBgPath = "textures/Backgrounds/background_1.png";
     std::string currentTablePath = "textures/Tables/table_green.png.png";
     std::string currentCbPath = "textures/cardback/cardBackRed.png";
     bool isFullscreen = false;
 
-    loadGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-
+    // TWORZENIE NOWEGO PROFILU GRACZA
+    sf::Font tempFont;
+    tempFont.loadFromFile("textures/arial.ttf");
+    auto createProfileBtn = std::make_shared<Button>(362.f, 600.f, 300.f, 50.f, "NEW PROFILE", tempFont, 20);
+    createProfileBtn->setDrawState(PROFILE_SELECT);
+    
+    std::vector<std::shared_ptr<Button>> profileBtns;
+    auto rebuildProfileButtons = [&]() {
+        profileBtns.clear();
+        auto scores = loadHighscores();
+        float startY = 150.f;
+        // WYSWIETLANIE NAJLEPSZYCH 5 GRACZY
+        for (size_t i = 0; i < scores.size() && i < 5; ++i) {
+            auto btn = std::make_shared<Button>(362.f, startY + i * 70.f, 300.f, 50.f, scores[i].name, tempFont, 20);
+            btn->setDrawState(PROFILE_SELECT);
+            profileBtns.push_back(btn);
+        }
+    };
+    rebuildProfileButtons();
+    // WCZYTYWANIE DZWIEKOW
     sf::SoundBuffer fanBuffer;
     sf::Sound fanSound;
     if (fanBuffer.loadFromFile("sounds/card-fan-1.ogg")) {
@@ -119,7 +213,7 @@ int main() {
     } else {
         std::cerr << "Error loading sound: sounds/chips-handle-6.ogg" << std::endl;
     }
-
+    // RENDEROWANIE OKNA
     sf::RenderWindow window;
     if (isFullscreen) {
         window.create(sf::VideoMode::getDesktopMode(), "BLACKJACK PP", sf::Style::Fullscreen);
@@ -131,7 +225,7 @@ int main() {
     sf::View gameView(sf::FloatRect(0.f, 0.f, 1024.f, 768.f));
     gameView = getLetterboxView(gameView, window.getSize().x, window.getSize().y);
     window.setView(gameView);
-
+    // WCZYTANIE CZCIONKI
     sf::Font font;
     if (!font.loadFromFile("textures/arial.ttf")) {
         std::cerr << "Error: textures/arial.ttf not found!" << std::endl;
@@ -156,114 +250,161 @@ int main() {
     };
     updateTableTexture(currentTablePath);
 
-    Deck deck;
-    deck.setCardBackPath(currentCbPath);
+    // INTELIGENTNE WSKAZNIKI
+    auto deckPtr = std::make_shared<Deck>();
+    deckPtr->setCardBackPath(currentCbPath);
 
-    Button playBtn(362.f, 300.f, 300.f, 50.f, "PLAY", font, 20);
-    Button settingsBtn(362.f, 370.f, 300.f, 50.f, "SETTINGS", font, 20);
-    Button exitBtn(362.f, 440.f, 300.f, 50.f, "EXIT GAME", font, 20);
+    // PRZYCISKI MENU
+    auto playBtn = std::make_shared<Button>(362.f, 260.f, 300.f, 50.f, "PLAY", font, 20);
+    playBtn->setDrawState(MENU);
+    auto settingsBtn = std::make_shared<Button>(362.f, 330.f, 300.f, 50.f, "SETTINGS", font, 20);
+    settingsBtn->setDrawState(MENU);
+    auto leaderboardBtn = std::make_shared<Button>(362.f, 400.f, 300.f, 50.f, "LEADERBOARD", font, 20);
+    leaderboardBtn->setDrawState(MENU);
+    auto exitBtn = std::make_shared<Button>(362.f, 470.f, 300.f, 50.f, "EXIT GAME", font, 20);
+    exitBtn->setDrawState(MENU);
 
-    Button modeClassicBtn(272.f, 210.f, 230.f, 45.f, "Classic", font, 18);
-    Button modeCustomBtn(522.f, 210.f, 230.f, 45.f, "Custom", font, 18);
-    Button diffNormalBtn(272.f, 330.f, 230.f, 45.f, "Normal", font, 18);
-    Button diffHardBtn(522.f, 330.f, 230.f, 45.f, "Hard", font, 18);
-    Button startGameBtn(362.f, 460.f, 300.f, 50.f, "START GAME", font, 20);
-    Button backToMenuFromOptionsBtn(362.f, 530.f, 300.f, 50.f, "BACK", font, 20);
+    // PRZYCISKI OPCJI ROZGRYWKI
+    auto modeClassicBtn = std::make_shared<Button>(272.f, 210.f, 230.f, 45.f, "Classic", font, 18);
+    modeClassicBtn->setDrawState(GAMEPLAY_OPTIONS);
+    auto modeCustomBtn = std::make_shared<Button>(522.f, 210.f, 230.f, 45.f, "Custom", font, 18);
+    modeCustomBtn->setDrawState(GAMEPLAY_OPTIONS);
+    auto diffNormalBtn = std::make_shared<Button>(272.f, 330.f, 230.f, 45.f, "Normal", font, 18);
+    diffNormalBtn->setDrawState(GAMEPLAY_OPTIONS);
+    auto diffHardBtn = std::make_shared<Button>(522.f, 330.f, 230.f, 45.f, "Hard", font, 18);
+    diffHardBtn->setDrawState(GAMEPLAY_OPTIONS);
+    auto startGameBtn = std::make_shared<Button>(362.f, 460.f, 300.f, 50.f, "START GAME", font, 20);
+    startGameBtn->setDrawState(GAMEPLAY_OPTIONS);
+    auto backToMenuFromOptionsBtn = std::make_shared<Button>(362.f, 530.f, 300.f, 50.f, "BACK", font, 20);
+    backToMenuFromOptionsBtn->setDrawState(GAMEPLAY_OPTIONS);
 
     sf::Texture& chipsTex = texManager.get("textures/chips/Chips.png");
 
-    ChipButton chip1(312.f, 260.f, 1, "1$", font, chipsTex, sf::IntRect(0, 0, 64, 72));
-    ChipButton chip5(396.f, 260.f, 5, "5$", font, chipsTex, sf::IntRect(64, 0, 64, 72));
-    ChipButton chip25(480.f, 260.f, 25, "25$", font, chipsTex, sf::IntRect(128, 0, 64, 72));
-    ChipButton chip10(564.f, 260.f, 10, "10$", font, chipsTex, sf::IntRect(192, 0, 64, 72));
-    ChipButton chip100(648.f, 260.f, 100, "100$", font, chipsTex, sf::IntRect(256, 0, 64, 72));
+    // ZETONY W CZASIE OBSTAWIANIA
+    auto chip1 = std::make_shared<ChipButton>(312.f, 260.f, 1, "1$", font, chipsTex, sf::IntRect(0, 0, 64, 72));
+    auto chip5 = std::make_shared<ChipButton>(396.f, 260.f, 5, "5$", font, chipsTex, sf::IntRect(64, 0, 64, 72));
+    auto chip25 = std::make_shared<ChipButton>(480.f, 260.f, 25, "25$", font, chipsTex, sf::IntRect(128, 0, 64, 72));
+    auto chip10 = std::make_shared<ChipButton>(564.f, 260.f, 10, "10$", font, chipsTex, sf::IntRect(192, 0, 64, 72));
+    auto chip100 = std::make_shared<ChipButton>(648.f, 260.f, 100, "100$", font, chipsTex, sf::IntRect(256, 0, 64, 72));
 
-    ChipButton chip500(312.f, 342.f, 500, "500$", font, chipsTex, sf::IntRect(0, 72, 64, 72));
-    ChipButton chip1000(396.f, 342.f, 1000, "1k$", font, chipsTex, sf::IntRect(64, 72, 64, 72));
-    ChipButton chip5000(480.f, 342.f, 5000, "5k$", font, chipsTex, sf::IntRect(128, 72, 64, 72));
-    ChipButton chip10000(564.f, 342.f, 10000, "10k$", font, chipsTex, sf::IntRect(192, 72, 64, 72));
-    ChipButton chip25000(648.f, 342.f, 25000, "25k$", font, chipsTex, sf::IntRect(256, 72, 64, 72));
+    auto chip500 = std::make_shared<ChipButton>(312.f, 342.f, 500, "500$", font, chipsTex, sf::IntRect(0, 72, 64, 72));
+    auto chip1000 = std::make_shared<ChipButton>(396.f, 342.f, 1000, "1k$", font, chipsTex, sf::IntRect(64, 72, 64, 72));
+    auto chip5000 = std::make_shared<ChipButton>(480.f, 342.f, 5000, "5k$", font, chipsTex, sf::IntRect(128, 72, 64, 72));
+    auto chip10000 = std::make_shared<ChipButton>(564.f, 342.f, 10000, "10k$", font, chipsTex, sf::IntRect(192, 72, 64, 72));
+    auto chip25000 = std::make_shared<ChipButton>(648.f, 342.f, 25000, "25k$", font, chipsTex, sf::IntRect(256, 72, 64, 72));
 
-    Button resetBetBtn(242.f, 440.f, 160.f, 45.f, "Reset Bet", font, 18);
-    Button dealBtn(422.f, 440.f, 180.f, 45.f, "Deal", font, 18);
-    Button backToMenuBtn(622.f, 440.f, 160.f, 45.f, "Back", font, 18);
-    Button bailoutBtn(412.f, 500.f, 200.f, 45.f, "Recover $1000", font, 18);
+    auto resetBetBtn = std::make_shared<Button>(242.f, 440.f, 160.f, 45.f, "Reset Bet", font, 18);
+    resetBetBtn->setDrawState(BETTING);
+    auto dealBtn = std::make_shared<Button>(422.f, 440.f, 180.f, 45.f, "Deal", font, 18);
+    dealBtn->setDrawState(BETTING);
+    auto backToMenuBtn = std::make_shared<Button>(622.f, 440.f, 160.f, 45.f, "Back", font, 18);
+    backToMenuBtn->setDrawState(BETTING);
+    auto bailoutBtn = std::make_shared<Button>(412.f, 500.f, 200.f, 45.f, "Recover $1000", font, 18);
+    bailoutBtn->setDrawState(BETTING);
 
-    Button hitBtn(132.f, 690.f, 120.f, 45.f, "Hit", font, 18);
-    Button standBtn(272.f, 690.f, 120.f, 45.f, "Stand", font, 18);
-    Button splitBtn(412.f, 690.f, 120.f, 45.f, "Split", font, 18);
+    // PRZYCISKI W TRAKCIE RUNDY GRACZA
+    auto hitBtn = std::make_shared<Button>(132.f, 690.f, 120.f, 45.f, "Hit", font, 18);
+    hitBtn->setDrawState(PLAYER_TURN);
+    auto standBtn = std::make_shared<Button>(272.f, 690.f, 120.f, 45.f, "Stand", font, 18);
+    standBtn->setDrawState(PLAYER_TURN);
+    auto splitBtn = std::make_shared<Button>(412.f, 690.f, 120.f, 45.f, "Split", font, 18);
+    splitBtn->setDrawState(PLAYER_TURN);
 
-    Button lifelineBtn(842.f, 170.f, 150.f, 45.f, "Minus card -25$", font, 14);
-    Button peekBtn(842.f, 230.f, 150.f, 45.f, "Sneaky peeky -25$", font, 14);
+    // PRZYCISKI UMIEJETNOSCI
+    auto lifelineBtn = std::make_shared<Button>(842.f, 170.f, 150.f, 45.f, "Minus card -25$", font, 14);
+    lifelineBtn->setDrawState(PLAYER_TURN);
+    auto peekBtn = std::make_shared<Button>(842.f, 230.f, 150.f, 45.f, "Sneaky peeky -25$", font, 14);
+    peekBtn->setDrawState(PLAYER_TURN);
 
-    Button peekDeckBtn(842.f, 230.f, 150.f, 45.f, "Peek Deck", font, 16);
-    Button peekDealerBtn(842.f, 290.f, 150.f, 45.f, "Peek Dealer", font, 16);
-    Button cancelPeekBtn(842.f, 350.f, 150.f, 45.f, "Cancel", font, 16);
+    auto peekDeckBtn = std::make_shared<Button>(842.f, 230.f, 150.f, 45.f, "Peek Deck", font, 16);
+    peekDeckBtn->setDrawState(PLAYER_TURN);
+    auto peekDealerBtn = std::make_shared<Button>(842.f, 290.f, 150.f, 45.f, "Peek Dealer", font, 16);
+    peekDealerBtn->setDrawState(PLAYER_TURN);
+    auto cancelPeekBtn = std::make_shared<Button>(842.f, 350.f, 150.f, 45.f, "Cancel", font, 16);
+    cancelPeekBtn->setDrawState(PLAYER_TURN);
 
-    Button newRoundBtn(387.f, 600.f, 250.f, 50.f, "New Round", font, 20);
+    auto newRoundBtn = std::make_shared<Button>(387.f, 600.f, 250.f, 50.f, "New Round", font, 20);
+    newRoundBtn->setDrawState(GAME_OVER);
 
-    Button bg1Btn(350.f, 160.f, 150.f, 45.f, "[ ] Bg 1", font, 18);
-    Button bg2Btn(524.f, 160.f, 150.f, 45.f, "[ ] Bg 2", font, 18);
+    // PRZYCISKI USTAWIEN
+    auto bg1Btn = std::make_shared<Button>(350.f, 160.f, 150.f, 45.f, "[ ] Bg 1", font, 18);
+    bg1Btn->setDrawState(SETTINGS);
+    auto bg2Btn = std::make_shared<Button>(524.f, 160.f, 150.f, 45.f, "[ ] Bg 2", font, 18);
+    bg2Btn->setDrawState(SETTINGS);
 
-    Button tableGreenBtn(272.f, 250.f, 150.f, 45.f, "[ ] Green", font, 18);
-    Button tableBlueBtn(442.f, 250.f, 150.f, 45.f, "[ ] Blue", font, 18);
-    Button tableRedBtn(612.f, 250.f, 150.f, 45.f, "[ ] Red", font, 18);
+    auto tableGreenBtn = std::make_shared<Button>(272.f, 250.f, 150.f, 45.f, "[ ] Green", font, 18);
+    tableGreenBtn->setDrawState(SETTINGS);
+    auto tableBlueBtn = std::make_shared<Button>(442.f, 250.f, 150.f, 45.f, "[ ] Blue", font, 18);
+    tableBlueBtn->setDrawState(SETTINGS);
+    auto tableRedBtn = std::make_shared<Button>(612.f, 250.f, 150.f, 45.f, "[ ] Red", font, 18);
+    tableRedBtn->setDrawState(SETTINGS);
 
-    Button cbRedBtn(272.f, 340.f, 150.f, 45.f, "[ ] Red", font, 18);
-    Button cbBlueBtn(442.f, 340.f, 150.f, 45.f, "[ ] Blue", font, 18);
-    Button cbGreenBtn(612.f, 340.f, 150.f, 45.f, "[ ] Green", font, 18);
+    auto cbRedBtn = std::make_shared<Button>(272.f, 340.f, 150.f, 45.f, "[ ] Red", font, 18);
+    cbRedBtn->setDrawState(SETTINGS);
+    auto cbBlueBtn = std::make_shared<Button>(442.f, 340.f, 150.f, 45.f, "[ ] Blue", font, 18);
+    cbBlueBtn->setDrawState(SETTINGS);
+    auto cbGreenBtn = std::make_shared<Button>(612.f, 340.f, 150.f, 45.f, "[ ] Green", font, 18);
+    cbGreenBtn->setDrawState(SETTINGS);
 
-    Button fullscreenBtn(362.f, 430.f, 300.f, 50.f, "[ ] Fullscreen", font, 18);
-    Button resetProgressBtn(362.f, 500.f, 300.f, 50.f, "Reset Progress ($1000)", font, 18);
-    Button backFromSettingsBtn(362.f, 570.f, 300.f, 50.f, "Back to Menu", font, 18);
+    auto fullscreenBtn = std::make_shared<Button>(362.f, 430.f, 300.f, 50.f, "[ ] Fullscreen", font, 18);
+    fullscreenBtn->setDrawState(SETTINGS);
+    auto resetProgressBtn = std::make_shared<Button>(362.f, 500.f, 300.f, 50.f, "Reset Progress ($1000)", font, 18);
+    resetProgressBtn->setDrawState(SETTINGS);
+    auto backFromSettingsBtn = std::make_shared<Button>(362.f, 570.f, 300.f, 50.f, "Back to Menu", font, 18);
+    backFromSettingsBtn->setDrawState(SETTINGS);
+
+    // PRZYCISK POWROTU Z TABLICY WYNIKOW
+    auto leaderboardBackBtn = std::make_shared<Button>(362.f, 570.f, 300.f, 50.f, "BACK", font, 20);
+    leaderboardBackBtn->setDrawState(LEADERBOARD);
 
     auto updateSettingsButtonLabels = [&]() {
         if (currentBgPath == "textures/Backgrounds/background_1.png") {
-            bg1Btn.setText("[x] Bg 1");
-            bg2Btn.setText("[ ] Bg 2");
+            bg1Btn->setText("[x] Bg 1");
+            bg2Btn->setText("[ ] Bg 2");
         } else {
-            bg1Btn.setText("[ ] Bg 1");
-            bg2Btn.setText("[x] Bg 2");
+            bg1Btn->setText("[ ] Bg 1");
+            bg2Btn->setText("[x] Bg 2");
         }
 
         if (currentTablePath == "textures/Tables/table_green.png.png") {
-            tableGreenBtn.setText("[x] Green");
-            tableBlueBtn.setText("[ ] Blue");
-            tableRedBtn.setText("[ ] Red");
+            tableGreenBtn->setText("[x] Green");
+            tableBlueBtn->setText("[ ] Blue");
+            tableRedBtn->setText("[ ] Red");
         } else if (currentTablePath == "textures/Tables/table_blue.png") {
-            tableGreenBtn.setText("[ ] Green");
-            tableBlueBtn.setText("[x] Blue");
-            tableRedBtn.setText("[ ] Red");
+            tableGreenBtn->setText("[ ] Green");
+            tableBlueBtn->setText("[x] Blue");
+            tableRedBtn->setText("[ ] Red");
         } else {
-            tableGreenBtn.setText("[ ] Green");
-            tableBlueBtn.setText("[ ] Blue");
-            tableRedBtn.setText("[x] Red");
+            tableGreenBtn->setText("[ ] Green");
+            tableBlueBtn->setText("[ ] Blue");
+            tableRedBtn->setText("[x] Red");
         }
 
         if (currentCbPath == "textures/cardback/cardBackRed.png") {
-            cbRedBtn.setText("[x] Red");
-            cbBlueBtn.setText("[ ] Blue");
-            cbGreenBtn.setText("[ ] Green");
+            cbRedBtn->setText("[x] Red");
+            cbBlueBtn->setText("[ ] Blue");
+            cbGreenBtn->setText("[ ] Green");
         } else if (currentCbPath == "textures/cardback/cardBackBlue.png") {
-            cbRedBtn.setText("[ ] Red");
-            cbBlueBtn.setText("[x] Blue");
-            cbGreenBtn.setText("[ ] Green");
+            cbRedBtn->setText("[ ] Red");
+            cbBlueBtn->setText("[x] Blue");
+            cbGreenBtn->setText("[ ] Green");
         } else {
-            cbRedBtn.setText("[ ] Red");
-            cbBlueBtn.setText("[ ] Blue");
-            cbGreenBtn.setText("[x] Green");
+            cbRedBtn->setText("[ ] Red");
+            cbBlueBtn->setText("[ ] Blue");
+            cbGreenBtn->setText("[x] Green");
         }
 
         if (isFullscreen) {
-            fullscreenBtn.setText("[x] Fullscreen");
+            fullscreenBtn->setText("[x] Fullscreen");
         } else {
-            fullscreenBtn.setText("[ ] Fullscreen");
+            fullscreenBtn->setText("[ ] Fullscreen");
         }
     };
     updateSettingsButtonLabels();
 
-    Hand dealerHand(sf::Vector2f(350.f, 150.f));
-    std::vector<Hand> playerHands;
+    // TALIA KRUPIERA
+    auto dealerHandPtr = std::make_shared<Hand>(sf::Vector2f(350.f, 150.f));
+    std::vector<std::shared_ptr<Hand>> playerHands;
 
     GameState state = MENU;
     std::string resultMessage = "";
@@ -279,22 +420,93 @@ int main() {
 
     auto updateGameplayOptionsLabels = [&]() {
         if (hasSkillsMode) {
-            modeClassicBtn.setText("[ ] Classic");
-            modeCustomBtn.setText("[x] Custom");
+            modeClassicBtn->setText("[ ] Classic");
+            modeCustomBtn->setText("[x] Custom");
         } else {
-            modeClassicBtn.setText("[x] Classic");
-            modeCustomBtn.setText("[ ] Custom");
+            modeClassicBtn->setText("[x] Classic");
+            modeCustomBtn->setText("[ ] Custom");
         }
 
         if (isHardMode) {
-            diffNormalBtn.setText("[ ] Normal");
-            diffHardBtn.setText("[x] Hard");
+            diffNormalBtn->setText("[ ] Normal");
+            diffHardBtn->setText("[x] Hard");
         } else {
-            diffNormalBtn.setText("[x] Normal");
-            diffHardBtn.setText("[ ] Hard");
+            diffNormalBtn->setText("[x] Normal");
+            diffHardBtn->setText("[ ] Hard");
         }
     };
     updateGameplayOptionsLabels();
+
+    std::vector<std::shared_ptr<GameObject>> gameObjects;
+
+    auto rebuildGameObjects = [&]() {
+        gameObjects.clear();
+
+        for (const auto& btn : profileBtns) gameObjects.push_back(btn);
+        gameObjects.push_back(createProfileBtn);
+        
+        gameObjects.push_back(deckPtr);
+        gameObjects.push_back(dealerHandPtr);
+        for (auto& h : playerHands) {
+            gameObjects.push_back(h);
+        }
+
+        gameObjects.push_back(playBtn);
+        gameObjects.push_back(settingsBtn);
+        gameObjects.push_back(leaderboardBtn);
+        gameObjects.push_back(exitBtn);
+
+        gameObjects.push_back(modeClassicBtn);
+        gameObjects.push_back(modeCustomBtn);
+        gameObjects.push_back(diffNormalBtn);
+        gameObjects.push_back(diffHardBtn);
+        gameObjects.push_back(startGameBtn);
+        gameObjects.push_back(backToMenuFromOptionsBtn);
+
+        gameObjects.push_back(chip1);
+        gameObjects.push_back(chip5);
+        gameObjects.push_back(chip25);
+        gameObjects.push_back(chip10);
+        gameObjects.push_back(chip100);
+        gameObjects.push_back(chip500);
+        gameObjects.push_back(chip1000);
+        gameObjects.push_back(chip5000);
+        gameObjects.push_back(chip10000);
+        gameObjects.push_back(chip25000);
+
+        gameObjects.push_back(resetBetBtn);
+        gameObjects.push_back(dealBtn);
+        gameObjects.push_back(backToMenuBtn);
+        gameObjects.push_back(bailoutBtn);
+
+        gameObjects.push_back(hitBtn);
+        gameObjects.push_back(standBtn);
+        gameObjects.push_back(splitBtn);
+
+        gameObjects.push_back(lifelineBtn);
+        gameObjects.push_back(peekBtn);
+        gameObjects.push_back(peekDeckBtn);
+        gameObjects.push_back(peekDealerBtn);
+        gameObjects.push_back(cancelPeekBtn);
+
+        gameObjects.push_back(newRoundBtn);
+
+        gameObjects.push_back(bg1Btn);
+        gameObjects.push_back(bg2Btn);
+        gameObjects.push_back(tableGreenBtn);
+        gameObjects.push_back(tableBlueBtn);
+        gameObjects.push_back(tableRedBtn);
+        gameObjects.push_back(cbRedBtn);
+        gameObjects.push_back(cbBlueBtn);
+        gameObjects.push_back(cbGreenBtn);
+        gameObjects.push_back(fullscreenBtn);
+        gameObjects.push_back(resetProgressBtn);
+        gameObjects.push_back(backFromSettingsBtn);
+
+        gameObjects.push_back(leaderboardBackBtn);
+    };
+
+    rebuildGameObjects();
 
     auto toggleWindowMode = [&](bool fullscreen) {
         texManager.clear();
@@ -304,30 +516,32 @@ int main() {
             window.create(sf::VideoMode(1024, 768), "BLACKJACK PP", sf::Style::Close);
         }
         window.setFramerateLimit(60);
-        
+
         if (!font.loadFromFile("textures/arial.ttf")) {
             std::cerr << "Error: textures/arial.ttf not found after window reconstruction!" << std::endl;
         }
 
         updateBgTexture(currentBgPath);
         updateTableTexture(currentTablePath);
-        deck.setCardBackPath(currentCbPath);
+        deckPtr->setCardBackPath(currentCbPath);
 
         sf::Texture& chipsTex = texManager.get("textures/chips/Chips.png");
-        chip1.setTexture(chipsTex);
-        chip5.setTexture(chipsTex);
-        chip25.setTexture(chipsTex);
-        chip10.setTexture(chipsTex);
-        chip100.setTexture(chipsTex);
-        chip500.setTexture(chipsTex);
-        chip1000.setTexture(chipsTex);
-        chip5000.setTexture(chipsTex);
-        chip10000.setTexture(chipsTex);
-        chip25000.setTexture(chipsTex);
+        chip1->setTexture(chipsTex);
+        chip5->setTexture(chipsTex);
+        chip25->setTexture(chipsTex);
+        chip10->setTexture(chipsTex);
+        chip100->setTexture(chipsTex);
+        chip500->setTexture(chipsTex);
+        chip1000->setTexture(chipsTex);
+        chip5000->setTexture(chipsTex);
+        chip10000->setTexture(chipsTex);
+        chip25000->setTexture(chipsTex);
 
         sf::View newView(sf::FloatRect(0.f, 0.f, 1024.f, 768.f));
         gameView = getLetterboxView(newView, window.getSize().x, window.getSize().y);
         window.setView(gameView);
+        
+        rebuildGameObjects();
     };
 
     sf::Text uiText("", font, 20);
@@ -342,15 +556,15 @@ int main() {
 
     auto startRound = [&]() {
         fanSound.play();
-        deck.reset();
+        deckPtr->reset();
         playerHands.clear();
-        dealerHand.cards.clear();
+        dealerHandPtr->cards.clear();
         lifelineUsed = false;
         peekUsed = false;
         isPeekingChoiceActive = false;
         isDealerCardRevealed = false;
 
-        playerHands.push_back(Hand(sf::Vector2f(350.f, 500.f)));
+        playerHands.push_back(std::make_shared<Hand>(sf::Vector2f(350.f, 500.f)));
 
         activeHandIndex = 0;
         state = DEALING_START;
@@ -359,104 +573,81 @@ int main() {
         resultMessage = "";
         dealerTimer = 0.f;
 
-        saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+        saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+        rebuildGameObjects();
     };
 
     while (window.isOpen()) {
         float dt = clock.restart().asSeconds();
         sf::Event event;
 
+        // SPRAWDZANIE CZY KARTA JEST W RUCHU
         bool isAnyAnimating = false;
-        for (const auto& c : dealerHand.cards) if (c.isAnimating) isAnyAnimating = true;
+        for (const auto& c : dealerHandPtr->cards) if (c.isAnimating) isAnyAnimating = true;
         for (const auto& h : playerHands)
-            for (const auto& c : h.cards) if (c.isAnimating) isAnyAnimating = true;
+            for (const auto& c : h->cards) if (c.isAnimating) isAnyAnimating = true;
 
         sf::Vector2i mousePosI = sf::Mouse::getPosition(window);
         sf::Vector2f mousePos = window.mapPixelToCoords(mousePosI);
 
-        if (state == MENU) {
-            playBtn.update(mousePos);
-            settingsBtn.update(mousePos);
-            exitBtn.update(mousePos);
-        } else if (state == GAMEPLAY_OPTIONS) {
-            modeClassicBtn.update(mousePos);
-            modeCustomBtn.update(mousePos);
-            diffNormalBtn.update(mousePos);
-            diffHardBtn.update(mousePos);
-            startGameBtn.update(mousePos);
-            backToMenuFromOptionsBtn.update(mousePos);
-        } else if (state == BETTING) {
-            chip1.setEnabled(balance >= 1);
-            chip5.setEnabled(balance >= 5);
-            chip25.setEnabled(balance >= 25);
-            chip10.setEnabled(balance >= 10);
-            chip100.setEnabled(balance >= 100);
-            chip500.setEnabled(balance >= 500);
-            chip1000.setEnabled(balance >= 1000);
-            chip5000.setEnabled(balance >= 5000);
-            chip10000.setEnabled(balance >= 10000);
-            chip25000.setEnabled(balance >= 25000);
-            resetBetBtn.setEnabled(currentBet > 0);
-            dealBtn.setEnabled(currentBet > 0);
-
-            chip1.update(mousePos);
-            chip5.update(mousePos);
-            chip25.update(mousePos);
-            chip10.update(mousePos);
-            chip100.update(mousePos);
-            chip500.update(mousePos);
-            chip1000.update(mousePos);
-            chip5000.update(mousePos);
-            chip10000.update(mousePos);
-            chip25000.update(mousePos);
-            resetBetBtn.update(mousePos);
-            dealBtn.update(mousePos);
-            backToMenuBtn.update(mousePos);
-            bailoutBtn.update(mousePos);
+        // AKTUALIZACJA PRZYCISKOW
+        if (state == BETTING) {
+            chip1->setEnabled(balance >= 1);
+            chip5->setEnabled(balance >= 5);
+            chip25->setEnabled(balance >= 25);
+            chip10->setEnabled(balance >= 10);
+            chip100->setEnabled(balance >= 100);
+            chip500->setEnabled(balance >= 500);
+            chip1000->setEnabled(balance >= 1000);
+            chip5000->setEnabled(balance >= 5000);
+            chip10000->setEnabled(balance >= 10000);
+            chip25000->setEnabled(balance >= 25000);
+            resetBetBtn->setEnabled(currentBet > 0);
+            dealBtn->setEnabled(currentBet > 0);
+            bailoutBtn->setVisible(balance == 0 && currentBet == 0);
         } else if (state == PLAYER_TURN) {
             if (!playerHands.empty() && activeHandIndex < playerHands.size()) {
-                Hand& currentHand = playerHands[activeHandIndex];
-                bool canSplit = (playerHands.size() == 1 && currentHand.cards.size() == 2 &&
-                                 currentHand.cards[0].value == currentHand.cards[1].value &&
+                auto& currentHand = playerHands[activeHandIndex];
+                bool canSplit = (playerHands.size() == 1 && currentHand->cards.size() == 2 &&
+                                 currentHand->cards[0].value == currentHand->cards[1].value &&
                                  balance >= currentBet);
 
-                hitBtn.setEnabled(currentHand.getTotal() <= 21 && !isAnyAnimating && !isPeekingChoiceActive);
-                standBtn.setEnabled(!isAnyAnimating && !isPeekingChoiceActive);
-                splitBtn.setEnabled(canSplit && !isAnyAnimating && !isPeekingChoiceActive);
-                
+                hitBtn->setEnabled(currentHand->getTotal() <= 21 && !isAnyAnimating && !isPeekingChoiceActive);
+                standBtn->setEnabled(!isAnyAnimating && !isPeekingChoiceActive);
+                splitBtn->setEnabled(canSplit && !isAnyAnimating && !isPeekingChoiceActive);
+
                 if (hasSkillsMode) {
-                    lifelineBtn.setEnabled(currentHand.getTotal() > 21 && !lifelineUsed && balance >= 25 && !isAnyAnimating && !isPeekingChoiceActive);
-                    peekBtn.setEnabled(!peekUsed && balance >= 25 && currentHand.getTotal() <= 21 && !isAnyAnimating && !isPeekingChoiceActive);
-                }
-            }
-            hitBtn.update(mousePos);
-            standBtn.update(mousePos);
-            splitBtn.update(mousePos);
-            
-            if (hasSkillsMode) {
-                if (isPeekingChoiceActive) {
-                    peekDeckBtn.update(mousePos);
-                    peekDealerBtn.update(mousePos);
-                    cancelPeekBtn.update(mousePos);
+                    lifelineBtn->setEnabled(currentHand->getTotal() > 21 && !lifelineUsed && balance >= 25 && !isAnyAnimating && !isPeekingChoiceActive);
+                    peekBtn->setEnabled(!peekUsed && balance >= 25 && currentHand->getTotal() <= 21 && !isAnyAnimating && !isPeekingChoiceActive);
+                    
+                    if (isPeekingChoiceActive) {
+                        peekDeckBtn->setVisible(true);
+                        peekDealerBtn->setVisible(true);
+                        cancelPeekBtn->setVisible(true);
+                        lifelineBtn->setVisible(false);
+                        peekBtn->setVisible(false);
+                    } else {
+                        peekDeckBtn->setVisible(false);
+                        peekDealerBtn->setVisible(false);
+                        cancelPeekBtn->setVisible(false);
+                        lifelineBtn->setVisible(true);
+                        peekBtn->setVisible(true);
+                    }
                 } else {
-                    lifelineBtn.update(mousePos);
-                    peekBtn.update(mousePos);
+                    lifelineBtn->setVisible(false);
+                    peekBtn->setVisible(false);
+                    peekDeckBtn->setVisible(false);
+                    peekDealerBtn->setVisible(false);
+                    cancelPeekBtn->setVisible(false);
                 }
             }
-        } else if (state == SETTINGS) {
-            bg1Btn.update(mousePos);
-            bg2Btn.update(mousePos);
-            tableGreenBtn.update(mousePos);
-            tableBlueBtn.update(mousePos);
-            tableRedBtn.update(mousePos);
-            cbRedBtn.update(mousePos);
-            cbBlueBtn.update(mousePos);
-            cbGreenBtn.update(mousePos);
-            fullscreenBtn.update(mousePos);
-            resetProgressBtn.update(mousePos);
-            backFromSettingsBtn.update(mousePos);
-        } else if (state == GAME_OVER) {
-            newRoundBtn.update(mousePos);
+        }
+
+        // AKTUALIZACJA MYSZY NA PRZYCISKACH
+        for (auto& obj : gameObjects) {
+            if (obj->shouldDraw(state)) {
+                obj->updateMouse(mousePos);
+            }
         }
 
         while (window.pollEvent(event)) {
@@ -468,215 +659,308 @@ int main() {
                 window.setView(gameView);
             }
 
+            // WPISYWANIE TEKSTU DLA NOWEGO PROFILU
+            if (state == PROFILE_CREATE && event.type == sf::Event::TextEntered) {
+                if (event.text.unicode == 8) { // BACKSPACE
+                    if (!typedName.empty()) typedName.pop_back();
+                } else if (event.text.unicode == 13) { // ENTER
+                    if (!typedName.empty()) {
+                        currentPlayerName = typedName;
+                        balance = 1000;
+                        updateLeaderboard(currentPlayerName, balance);
+                        loadGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                        updateBgTexture(currentBgPath);
+                        updateTableTexture(currentTablePath);
+                        deckPtr->setCardBackPath(currentCbPath);
+                        toggleWindowMode(isFullscreen);
+                        state = GAMEPLAY_OPTIONS;
+                        updateGameplayOptionsLabels();
+                    }
+                } else if (event.text.unicode >= 32 && event.text.unicode < 128 && typedName.length() < 15) {
+                    typedName += static_cast<char>(event.text.unicode);
+                }
+            }
+
             bool mouseClicked = (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left);
 
             if (mouseClicked) {
-                if (state == MENU) {
-                    if (playBtn.isPressed(mousePos, mouseClicked)) { state = GAMEPLAY_OPTIONS; updateGameplayOptionsLabels(); }
-                    else if (settingsBtn.isPressed(mousePos, mouseClicked)) { state = SETTINGS; updateSettingsButtonLabels(); }
-                    else if (exitBtn.isPressed(mousePos, mouseClicked)) { window.close(); }
-                }
-                else if (state == GAMEPLAY_OPTIONS) {
-                    if (modeClassicBtn.isPressed(mousePos, mouseClicked)) { hasSkillsMode = false; updateGameplayOptionsLabels(); }
-                    else if (modeCustomBtn.isPressed(mousePos, mouseClicked)) { hasSkillsMode = true; updateGameplayOptionsLabels(); }
-                    else if (diffNormalBtn.isPressed(mousePos, mouseClicked)) { isHardMode = false; updateGameplayOptionsLabels(); }
-                    else if (diffHardBtn.isPressed(mousePos, mouseClicked)) { isHardMode = true; updateGameplayOptionsLabels(); }
-                    else if (startGameBtn.isPressed(mousePos, mouseClicked)) { state = BETTING; saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen); }
-                    else if (backToMenuFromOptionsBtn.isPressed(mousePos, mouseClicked)) { state = MENU; }
-                }
-                else if (state == BETTING) {
-                    if (chip1.isPressed(mousePos, mouseClicked) && balance >= 1) { currentBet += 1; balance -= 1; handleSound.play(); }
-                    else if (chip5.isPressed(mousePos, mouseClicked) && balance >= 5) { currentBet += 5; balance -= 5; handleSound.play(); }
-                    else if (chip25.isPressed(mousePos, mouseClicked) && balance >= 25) { currentBet += 25; balance -= 25; handleSound.play(); }
-                    else if (chip10.isPressed(mousePos, mouseClicked) && balance >= 10) { currentBet += 10; balance -= 10; handleSound.play(); }
-                    else if (chip100.isPressed(mousePos, mouseClicked) && balance >= 100) { currentBet += 100; balance -= 100; handleSound.play(); }
-                    else if (chip500.isPressed(mousePos, mouseClicked) && balance >= 500) { currentBet += 500; balance -= 500; handleSound.play(); }
-                    else if (chip1000.isPressed(mousePos, mouseClicked) && balance >= 1000) { currentBet += 1000; balance -= 1000; handleSound.play(); }
-                    else if (chip5000.isPressed(mousePos, mouseClicked) && balance >= 5000) { currentBet += 5000; balance -= 5000; handleSound.play(); }
-                    else if (chip10000.isPressed(mousePos, mouseClicked) && balance >= 10000) { currentBet += 10000; balance -= 10000; handleSound.play(); }
-                    else if (chip25000.isPressed(mousePos, mouseClicked) && balance >= 25000) { currentBet += 25000; balance -= 25000; handleSound.play(); }
-                    else if (resetBetBtn.isPressed(mousePos, mouseClicked)) { balance += currentBet; currentBet = 0; saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen); handleSound.play(); }
-                    else if (backToMenuBtn.isPressed(mousePos, mouseClicked)) { state = MENU; saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen); }
-                    else if (dealBtn.isPressed(mousePos, mouseClicked) && currentBet > 0) { startRound(); }
-                    else if (bailoutBtn.isPressed(mousePos, mouseClicked) && balance == 0 && currentBet == 0) { balance = 1000; saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen); handleSound.play(); }
-                }
-                else if (state == PLAYER_TURN && !isAnyAnimating) {
-                    Hand& currentHand = playerHands[activeHandIndex];
-                    bool canSplit = (playerHands.size() == 1 && currentHand.cards.size() == 2 &&
-                                     currentHand.cards[0].value == currentHand.cards[1].value &&
-                                     balance >= currentBet);
-
-                    if (!isPeekingChoiceActive) {
-                        if (hitBtn.isPressed(mousePos, mouseClicked) && currentHand.getTotal() <= 21) {
-                            currentHand.addCard(deck.drawCard());
-                            placeSound.play();
-                            if (currentHand.getTotal() > 21) {
-                                if (!hasSkillsMode || lifelineUsed || balance < 25){
-                                    activeHandIndex++;
+                //OBSLUGA KLIKNIEC
+                for (auto& obj : gameObjects) {
+                    if (obj->shouldDraw(state)) {
+                        auto btn = std::dynamic_pointer_cast<Button>(obj);
+                        if (btn && btn->getEnabled()) {
+                            if (btn->isPressed(mousePos, mouseClicked)) {
+                                if (state == PROFILE_SELECT) {
+                                    if (btn == createProfileBtn) {
+                                        typedName = "";
+                                        state = PROFILE_CREATE;
+                                    } else {
+                                        for (const auto& pBtn : profileBtns) {
+                                            if (btn == pBtn) {
+                                                currentPlayerName = btn->getTextString();
+                                                loadGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                                updateBgTexture(currentBgPath);
+                                                updateTableTexture(currentTablePath);
+                                                deckPtr->setCardBackPath(currentCbPath);
+                                                toggleWindowMode(isFullscreen);
+                                                state = GAMEPLAY_OPTIONS;
+                                                updateGameplayOptionsLabels();
+                                                break;
+                                            }
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                        else if (standBtn.isPressed(mousePos, mouseClicked)) {
-                            activeHandIndex++;
-                        }
-                        else if (splitBtn.isPressed(mousePos, mouseClicked) && canSplit) {
-                            balance -= currentBet;
-                            currentBet *= 2;
-                            Card splitCard = currentHand.cards.back();
-                            currentHand.cards.pop_back();
-
-                            currentHand.startPos = sf::Vector2f(150.f, 500.f);
-                            currentHand.updateCardPositions();
-
-                            Hand secondHand(sf::Vector2f(550.f, 500.f));
-                            splitCard.currentPos = currentHand.cards[0].currentPos;
-                            secondHand.addCard(splitCard);
-                            placeSound.play();
-
-                            playerHands.push_back(secondHand);
-                        }
-                    }
-
-                    if (hasSkillsMode) {
-                        if (isPeekingChoiceActive) {
-                            if (peekDeckBtn.isPressed(mousePos, mouseClicked) && balance >= 25) {
-                                balance -= 25;
-                                peekUsed = true;
-                                deck.activatePeek();
-                                isPeekingChoiceActive = false;
-                                handleSound.play();
-                            }
-                            else if (peekDealerBtn.isPressed(mousePos, mouseClicked) && balance >= 25) {
-                                balance -= 25;
-                                peekUsed = true;
-                                isDealerCardRevealed = true;
-                                isPeekingChoiceActive = false;
-                                handleSound.play();
-                            }
-                            else if (cancelPeekBtn.isPressed(mousePos, mouseClicked)) {
-                                isPeekingChoiceActive = false;
-                            }
-                        } else {
-                            if (lifelineBtn.isPressed(mousePos, mouseClicked) && currentHand.getTotal() > 21 && !lifelineUsed && balance >= 25) {
-                                balance -= 25;
-                                lifelineUsed = true;
-                                Card lifelineCard = deck.drawCard();
-                                lifelineCard.isSubstracting = true;
-                                lifelineCard.frontSprite.setTexture(texManager.getInverted(lifelineCard.texturePath));
-                                currentHand.addCard(lifelineCard);
-                                placeSound.play();
-                                if (currentHand.getTotal() > 21){
-                                    activeHandIndex++;
+                                else if (btn == playBtn) {
+                                    if (profileBtns.empty()) {
+                                        typedName = "";
+                                        state = PROFILE_CREATE;
+                                    } else {
+                                        state = PROFILE_SELECT;
+                                    }
                                 }
-                            }
-                            else if (peekBtn.isPressed(mousePos, mouseClicked) && !peekUsed && balance >= 25 && currentHand.getTotal() <= 21) {
-                                isPeekingChoiceActive = true;
+                                else if (btn == settingsBtn) {
+                                    state = SETTINGS;
+                                    updateSettingsButtonLabels();
+                                }
+                                else if (btn == leaderboardBtn) {
+                                    state = LEADERBOARD;
+                                }
+                                else if (btn == exitBtn) {
+                                    window.close();
+                                }
+                                else if (btn == leaderboardBackBtn) {
+                                    state = MENU;
+                                }
+                                else if (btn == modeClassicBtn) {
+                                    hasSkillsMode = false;
+                                    updateGameplayOptionsLabels();
+                                }
+                                else if (btn == modeCustomBtn) {
+                                    hasSkillsMode = true;
+                                    updateGameplayOptionsLabels();
+                                }
+                                else if (btn == diffNormalBtn) {
+                                    isHardMode = false;
+                                    updateGameplayOptionsLabels();
+                                }
+                                else if (btn == diffHardBtn) {
+                                    isHardMode = true;
+                                    updateGameplayOptionsLabels();
+                                }
+                                else if (btn == startGameBtn) {
+                                    state = BETTING;
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                }
+                                else if (btn == backToMenuFromOptionsBtn) {
+                                    state = MENU;
+                                }
+                                else if (btn == chip1 && balance >= 1) { currentBet += 1; balance -= 1; handleSound.play(); }
+                                else if (btn == chip5 && balance >= 5) { currentBet += 5; balance -= 5; handleSound.play(); }
+                                else if (btn == chip25 && balance >= 25) { currentBet += 25; balance -= 25; handleSound.play(); }
+                                else if (btn == chip10 && balance >= 10) { currentBet += 10; balance -= 10; handleSound.play(); }
+                                else if (btn == chip100 && balance >= 100) { currentBet += 100; balance -= 100; handleSound.play(); }
+                                else if (btn == chip500 && balance >= 500) { currentBet += 500; balance -= 500; handleSound.play(); }
+                                else if (btn == chip1000 && balance >= 1000) { currentBet += 1000; balance -= 1000; handleSound.play(); }
+                                else if (btn == chip5000 && balance >= 5000) { currentBet += 5000; balance -= 5000; handleSound.play(); }
+                                else if (btn == chip10000 && balance >= 10000) { currentBet += 10000; balance -= 10000; handleSound.play(); }
+                                else if (btn == chip25000 && balance >= 25000) { currentBet += 25000; balance -= 25000; handleSound.play(); }
+                                else if (btn == resetBetBtn) {
+                                    balance += currentBet;
+                                    currentBet = 0;
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    handleSound.play();
+                                }
+                                else if (btn == backToMenuBtn) {
+                                    state = MENU;
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                }
+                                else if (btn == dealBtn && currentBet > 0) {
+                                    startRound();
+                                }
+                                else if (btn == bailoutBtn && balance == 0 && currentBet == 0) {
+                                    balance = 1000;
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    handleSound.play();
+                                }
+                                else if (state == PLAYER_TURN && !isAnyAnimating) {
+                                    auto& currentHand = playerHands[activeHandIndex];
+                                    if (btn == hitBtn && currentHand->getTotal() <= 21) {
+                                        currentHand->addCard(deckPtr->drawCard());
+                                        placeSound.play();
+                                        if (currentHand->getTotal() > 21) {
+                                            if (!hasSkillsMode || lifelineUsed || balance < 25) {
+                                                activeHandIndex++;
+                                            }
+                                        }
+                                    }
+                                    else if (btn == standBtn) {
+                                        activeHandIndex++;
+                                    }
+                                    else if (btn == splitBtn) {
+                                        bool canSplit = (playerHands.size() == 1 && currentHand->cards.size() == 2 &&
+                                                         currentHand->cards[0].value == currentHand->cards[1].value &&
+                                                         balance >= currentBet);
+                                        if (canSplit) {
+                                            balance -= currentBet;
+                                            currentBet *= 2;
+                                            Card splitCard = currentHand->cards.back();
+                                            currentHand->cards.pop_back();
+
+                                            currentHand->startPos = sf::Vector2f(150.f, 500.f);
+                                            currentHand->updateCardPositions();
+
+                                            auto secondHand = std::make_shared<Hand>(sf::Vector2f(550.f, 500.f));
+                                            splitCard.currentPos = currentHand->cards[0].currentPos;
+                                            secondHand->addCard(splitCard);
+                                            placeSound.play();
+
+                                            playerHands.push_back(secondHand);
+                                            rebuildGameObjects();
+                                        }
+                                    }
+                                    else if (hasSkillsMode) {
+                                        if (isPeekingChoiceActive) {
+                                            if (btn == peekDeckBtn && balance >= 25) {
+                                                balance -= 25;
+                                                peekUsed = true;
+                                                deckPtr->activatePeek();
+                                                isPeekingChoiceActive = false;
+                                                handleSound.play();
+                                            }
+                                            else if (btn == peekDealerBtn && balance >= 25) {
+                                                balance -= 25;
+                                                peekUsed = true;
+                                                isDealerCardRevealed = true;
+                                                isPeekingChoiceActive = false;
+                                                handleSound.play();
+                                            }
+                                            else if (btn == cancelPeekBtn) {
+                                                isPeekingChoiceActive = false;
+                                            }
+                                        } else {
+                                            if (btn == lifelineBtn && currentHand->getTotal() > 21 && !lifelineUsed && balance >= 25) {
+                                                balance -= 25;
+                                                lifelineUsed = true;
+                                                Card lifelineCard = deckPtr->drawCard();
+                                                lifelineCard.isSubstracting = true;
+                                                lifelineCard.frontSprite.setTexture(texManager.getInverted(lifelineCard.texturePath));
+                                                currentHand->addCard(lifelineCard);
+                                                placeSound.play();
+                                                if (currentHand->getTotal() > 21) {
+                                                    activeHandIndex++;
+                                                }
+                                            }
+                                            else if (btn == peekBtn && !peekUsed && balance >= 25 && currentHand->getTotal() <= 21) {
+                                                isPeekingChoiceActive = true;
+                                            }
+                                        }
+                                    }
+                                }
+                                else if (btn == bg1Btn) {
+                                    currentBgPath = "textures/Backgrounds/background_1.png";
+                                    updateBgTexture(currentBgPath);
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    updateSettingsButtonLabels();
+                                }
+                                else if (btn == bg2Btn) {
+                                    currentBgPath = "textures/Backgrounds/background_2.png";
+                                    updateBgTexture(currentBgPath);
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    updateSettingsButtonLabels();
+                                }
+                                else if (btn == tableGreenBtn) {
+                                    currentTablePath = "textures/Tables/table_green.png.png";
+                                    updateTableTexture(currentTablePath);
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    updateSettingsButtonLabels();
+                                }
+                                else if (btn == tableBlueBtn) {
+                                    currentTablePath = "textures/Tables/table_blue.png";
+                                    updateTableTexture(currentTablePath);
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    updateSettingsButtonLabels();
+                                }
+                                else if (btn == tableRedBtn) {
+                                    currentTablePath = "textures/Tables/table_red.png";
+                                    updateTableTexture(currentTablePath);
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    updateSettingsButtonLabels();
+                                }
+                                else if (btn == cbRedBtn) {
+                                    currentCbPath = "textures/cardback/cardBackRed.png";
+                                    deckPtr->setCardBackPath(currentCbPath);
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    updateSettingsButtonLabels();
+                                }
+                                else if (btn == cbBlueBtn) {
+                                    currentCbPath = "textures/cardback/cardBackBlue.png";
+                                    deckPtr->setCardBackPath(currentCbPath);
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    updateSettingsButtonLabels();
+                                }
+                                else if (btn == cbGreenBtn) {
+                                    currentCbPath = "textures/cardback/cardBackGreen.png";
+                                    deckPtr->setCardBackPath(currentCbPath);
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    updateSettingsButtonLabels();
+                                }
+                                else if (btn == fullscreenBtn) {
+                                    isFullscreen = !isFullscreen;
+                                    toggleWindowMode(isFullscreen);
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    updateSettingsButtonLabels();
+                                }
+                                else if (btn == resetProgressBtn) {
+                                    balance = 1000;
+                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    updateSettingsButtonLabels();
+                                }
+                                else if (btn == backFromSettingsBtn) {
+                                    state = MENU;
+                                }
+                                else if (btn == newRoundBtn) {
+                                    currentBet = 0;
+                                    state = BETTING;
+                                }
+                                break;
                             }
                         }
                     }
-
-                    if (activeHandIndex >= playerHands.size()) {
-                        bool allBusted = true;
-                        for (const auto& h : playerHands) if (h.getTotal() <= 21) allBusted = false;
-                        state = allBusted ? GAME_OVER : DEALER_TURN;
-                    }
                 }
 
-                else if (state == SETTINGS) {
-                    if (bg1Btn.isPressed(mousePos, mouseClicked)) {
-                        currentBgPath = "textures/Backgrounds/background_1.png";
-                        updateBgTexture(currentBgPath);
-                        saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                        updateSettingsButtonLabels();
-                    }
-                    else if (bg2Btn.isPressed(mousePos, mouseClicked)) {
-                        currentBgPath = "textures/Backgrounds/background_2.png";
-                        updateBgTexture(currentBgPath);
-                        saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                        updateSettingsButtonLabels();
-                    }
-                    else if (tableGreenBtn.isPressed(mousePos, mouseClicked)) {
-                        currentTablePath = "textures/Tables/table_green.png.png";
-                        updateTableTexture(currentTablePath);
-                        saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                        updateSettingsButtonLabels();
-                    }
-                    else if (tableBlueBtn.isPressed(mousePos, mouseClicked)) {
-                        currentTablePath = "textures/Tables/table_blue.png";
-                        updateTableTexture(currentTablePath);
-                        saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                        updateSettingsButtonLabels();
-                    }
-                    else if (tableRedBtn.isPressed(mousePos, mouseClicked)) {
-                        currentTablePath = "textures/Tables/table_red.png";
-                        updateTableTexture(currentTablePath);
-                        saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                        updateSettingsButtonLabels();
-                    }
-                    else if (cbRedBtn.isPressed(mousePos, mouseClicked)) {
-                        currentCbPath = "textures/cardback/cardBackRed.png";
-                        deck.setCardBackPath(currentCbPath);
-                        saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                        updateSettingsButtonLabels();
-                    }
-                    else if (cbBlueBtn.isPressed(mousePos, mouseClicked)) {
-                        currentCbPath = "textures/cardback/cardBackBlue.png";
-                        deck.setCardBackPath(currentCbPath);
-                        saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                        updateSettingsButtonLabels();
-                    }
-                    else if (cbGreenBtn.isPressed(mousePos, mouseClicked)) {
-                        currentCbPath = "textures/cardback/cardBackGreen.png";
-                        deck.setCardBackPath(currentCbPath);
-                        saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                        updateSettingsButtonLabels();
-                    }
-                    else if (fullscreenBtn.isPressed(mousePos, mouseClicked)) {
-                        isFullscreen = !isFullscreen;
-                        toggleWindowMode(isFullscreen);
-                        saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                        updateSettingsButtonLabels();
-                    }
-                    else if (resetProgressBtn.isPressed(mousePos, mouseClicked)) {
-                        balance = 1000;
-                        saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                        updateSettingsButtonLabels();
-                    }
-                    else if (backFromSettingsBtn.isPressed(mousePos, mouseClicked)) {
-                        state = MENU;
-                    }
-                }
-                else if (state == GAME_OVER && !isAnyAnimating) {
-                    if (newRoundBtn.isPressed(mousePos, mouseClicked)) {
-                        currentBet = 0;
-                        state = BETTING;
-                    }
+                if (state == PLAYER_TURN && activeHandIndex >= playerHands.size()) {
+                    bool allBusted = true;
+                    for (const auto& h : playerHands) if (h->getTotal() <= 21) allBusted = false;
+                    state = allBusted ? GAME_OVER : DEALER_TURN;
                 }
             }
         }
 
-        for (auto& c : dealerHand.cards) c.updateAnimation(dt);
-        for (auto& h : playerHands)
-            for (auto& c : h.cards) c.updateAnimation(dt);
+        // AKTUALIZACJA STANU GRY
+        for (auto& obj : gameObjects) {
+            if (obj->shouldDraw(state)) {
+                obj->update(dt);
+            }
+        }
 
         if (state == DEALING_START && !isAnyAnimating) {
             dealTimer += dt;
             if (dealTimer >= 0.35f) {
                 dealTimer = 0.f;
                 if (dealStep == 0) {
-                    playerHands[0].addCard(deck.drawCard());
+                    playerHands[0]->addCard(deckPtr->drawCard());
                     placeSound.play();
                     dealStep++;
                 } else if (dealStep == 1) {
-                    dealerHand.addCard(deck.drawCard());
+                    dealerHandPtr->addCard(deckPtr->drawCard());
                     placeSound.play();
                     dealStep++;
                 } else if (dealStep == 2) {
-                    playerHands[0].addCard(deck.drawCard());
+                    playerHands[0]->addCard(deckPtr->drawCard());
                     placeSound.play();
                     dealStep++;
                 } else if (dealStep == 3) {
-                    dealerHand.addCard(deck.drawCard());
+                    dealerHandPtr->addCard(deckPtr->drawCard());
                     placeSound.play();
                     dealStep++;
                 } else if (dealStep == 4) {
@@ -690,8 +974,8 @@ int main() {
             if (dealerTimer >= 0.8f) {
                 dealerTimer = 0.f;
                 int dealerLimit = isHardMode ? 18 : 17;
-                if (dealerHand.getTotal() < dealerLimit) {
-                    dealerHand.addCard(deck.drawCard());
+                if (dealerHandPtr->getTotal() < dealerLimit) {
+                    dealerHandPtr->addCard(deckPtr->drawCard());
                     placeSound.play();
                 } else {
                     state = GAME_OVER;
@@ -700,12 +984,12 @@ int main() {
         }
 
         if (state == GAME_OVER && resultMessage.empty()) {
-            int dTotal = dealerHand.getTotal();
+            int dTotal = dealerHandPtr->getTotal();
             float betPerHand = (playerHands.size() > 1) ? (currentBet / 2.f) : (float)currentBet;
 
             for (size_t i = 0; i < playerHands.size(); ++i) {
-                int pTotal = playerHands[i].getTotal();
-                bool isBlackjack = (playerHands.size() == 1 && playerHands[i].cards.size() == 2 && pTotal == 21);
+                int pTotal = playerHands[i]->getTotal();
+                bool isBlackjack = (playerHands.size() == 1 && playerHands[i]->cards.size() == 2 && pTotal == 21);
                 std::string prefix = playerHands.size() > 1 ? ("Hand " + std::to_string(i + 1) + ": ") : "";
 
                 if (pTotal > 21) {
@@ -726,7 +1010,9 @@ int main() {
                     balance += static_cast<int>(betPerHand);
                 }
             }
-            saveGame(balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+            // ZAPIS GRY DO TABELI WYNIKOW I PLIKU SAVEGAME
+            saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+            updateLeaderboard(currentPlayerName, balance);
         }
 
         window.clear();
@@ -739,12 +1025,8 @@ int main() {
             uiText.setString("BLACKJACK PP");
             sf::FloatRect textRect = uiText.getLocalBounds();
             uiText.setOrigin(textRect.left + textRect.width / 2.f, textRect.top + textRect.height / 2.f);
-            uiText.setPosition(512.f, 220.f);
+            uiText.setPosition(512.f, 170.f);
             window.draw(uiText);
-
-            playBtn.draw(window);
-            settingsBtn.draw(window);
-            exitBtn.draw(window);
         }
         else if (state == GAMEPLAY_OPTIONS) {
             uiText.setString("GAMEPLAY OPTIONS");
@@ -760,21 +1042,12 @@ int main() {
             modeLabel.setPosition(512.f, 170.f);
             window.draw(modeLabel);
 
-            modeClassicBtn.draw(window);
-            modeCustomBtn.draw(window);
-
             sf::Text diffLabel("SELECT DIFFICULTY:", font, 18);
             diffLabel.setFillColor(sf::Color::White);
             sf::FloatRect diffRect = diffLabel.getLocalBounds();
             diffLabel.setOrigin(diffRect.left + diffRect.width / 2.f, 0.f);
             diffLabel.setPosition(512.f, 290.f);
             window.draw(diffLabel);
-
-            diffNormalBtn.draw(window);
-            diffHardBtn.draw(window);
-
-            startGameBtn.draw(window);
-            backToMenuFromOptionsBtn.draw(window);
         }
         else if (state == BETTING) {
             uiText.setString(ecoStr + "PLACE YOUR BET:");
@@ -782,23 +1055,6 @@ int main() {
             uiText.setOrigin(textRect.left + textRect.width / 2.f, 0.f);
             uiText.setPosition(512.f, 150.f);
             window.draw(uiText);
-
-            chip1.draw(window);
-            chip5.draw(window);
-            chip25.draw(window);
-            chip10.draw(window);
-            chip100.draw(window);
-            chip500.draw(window);
-            chip1000.draw(window);
-            chip5000.draw(window);
-            chip10000.draw(window);
-            chip25000.draw(window);
-            resetBetBtn.draw(window);
-            dealBtn.draw(window);
-            backToMenuBtn.draw(window);
-            if (balance == 0 && currentBet == 0) {
-                bailoutBtn.draw(window);
-            }
         }
         else if (state == SETTINGS) {
             uiText.setString("GAME SETTINGS");
@@ -814,9 +1070,6 @@ int main() {
             bgLabel.setPosition(512.f, 130.f);
             window.draw(bgLabel);
 
-            bg1Btn.draw(window);
-            bg2Btn.draw(window);
-
             sf::Text tableLabel("SELECT TABLE:", font, 18);
             tableLabel.setFillColor(sf::Color::White);
             sf::FloatRect tableRect = tableLabel.getLocalBounds();
@@ -824,24 +1077,12 @@ int main() {
             tableLabel.setPosition(512.f, 220.f);
             window.draw(tableLabel);
 
-            tableGreenBtn.draw(window);
-            tableBlueBtn.draw(window);
-            tableRedBtn.draw(window);
-
             sf::Text cbLabel("SELECT CARD BACK:", font, 18);
             cbLabel.setFillColor(sf::Color::White);
             sf::FloatRect cbRect = cbLabel.getLocalBounds();
             cbLabel.setOrigin(cbRect.left + cbRect.width / 2.f, 0.f);
             cbLabel.setPosition(512.f, 310.f);
             window.draw(cbLabel);
-
-            cbRedBtn.draw(window);
-            cbBlueBtn.draw(window);
-            cbGreenBtn.draw(window);
-
-            fullscreenBtn.draw(window);
-            resetProgressBtn.draw(window);
-            backFromSettingsBtn.draw(window);
 
             sf::Sprite bgPreviewSprite;
             sf::Texture& bgTex = texManager.get(currentBgPath);
@@ -894,6 +1135,87 @@ int main() {
             cbPreviewLabel.setPosition(884.f, 200.f);
             window.draw(cbPreviewLabel);
         }
+        else if (state == LEADERBOARD) {
+            // RYSOWANIE LABELI
+            sf::RectangleShape frame(sf::Vector2f(500.f, 400.f));
+            frame.setPosition(262.f, 150.f);
+            frame.setFillColor(sf::Color(0, 0, 0, 150));
+            frame.setOutlineColor(sf::Color(46, 204, 113));
+            frame.setOutlineThickness(3.f);
+            window.draw(frame);
+
+            uiText.setString("LEADERBOARD");
+            uiText.setCharacterSize(28);
+            uiText.setFillColor(sf::Color::White);
+            sf::FloatRect textRect = uiText.getLocalBounds();
+            uiText.setOrigin(textRect.left + textRect.width / 2.f, 0.f);
+            uiText.setPosition(512.f, 80.f);
+            window.draw(uiText);
+            uiText.setCharacterSize(20);
+
+            auto scores = loadHighscores();
+            std::sort(scores.begin(), scores.end(), [](const Score& a, const Score& b) {
+                return a.value > b.value;
+            });
+            size_t count = std::min((size_t)10, scores.size());
+            for (size_t i = 0; i < count; ++i) {
+                sf::Text entryText;
+                entryText.setFont(font);
+                entryText.setCharacterSize(22);
+                
+                if (i == 0) entryText.setFillColor(sf::Color(255, 215, 0)); // ZLOTY KOLOR (1 GRACZ)
+                else if (i == 1) entryText.setFillColor(sf::Color(192, 192, 192)); // SREBRYNY (2 GRACZ)
+                else if (i == 2) entryText.setFillColor(sf::Color(205, 127, 50)); // BRAZOWY (3 GRACZ)
+                else entryText.setFillColor(sf::Color::White);
+
+                entryText.setString(std::to_string(i + 1) + ".  " + scores[i].name);
+                entryText.setPosition(300.f, 180.f + i * 50.f);
+                window.draw(entryText);
+
+                sf::Text scoreValText;
+                scoreValText.setFont(font);
+                scoreValText.setCharacterSize(22);
+                if (i == 0) scoreValText.setFillColor(sf::Color(255, 215, 0));
+                else if (i == 1) scoreValText.setFillColor(sf::Color(192, 192, 192));
+                else if (i == 2) scoreValText.setFillColor(sf::Color(205, 127, 50));
+                else scoreValText.setFillColor(sf::Color::White);
+
+                scoreValText.setString("$" + std::to_string(scores[i].value));
+                sf::FloatRect valRect = scoreValText.getLocalBounds();
+                scoreValText.setPosition(724.f - valRect.width, 180.f + i * 50.f);
+                window.draw(scoreValText);
+            }
+        }
+        else if (state == PROFILE_SELECT) {
+            sf::Text titleText("SELECT PLAYER PROFILE", font, 36);
+            titleText.setFillColor(sf::Color::White);
+            sf::FloatRect ttRect = titleText.getLocalBounds();
+            titleText.setOrigin(ttRect.left + ttRect.width / 2.f, 0.f);
+            titleText.setPosition(512.f, 60.f);
+            window.draw(titleText);
+        }
+        else if (state == PROFILE_CREATE) {
+            sf::RectangleShape frame(sf::Vector2f(400.f, 200.f));
+            frame.setPosition(312.f, 250.f);
+            frame.setFillColor(sf::Color(0, 0, 0, 150));
+            frame.setOutlineColor(sf::Color(46, 204, 113));
+            frame.setOutlineThickness(3.f);
+            window.draw(frame);
+
+            sf::Text promptText("Enter player name:", font, 24);
+            promptText.setFillColor(sf::Color::White);
+            sf::FloatRect ptRect = promptText.getLocalBounds();
+            promptText.setOrigin(ptRect.left + ptRect.width / 2.f, 0.f);
+            promptText.setPosition(512.f, 280.f);
+            window.draw(promptText);
+
+            sf::Text nameText(typedName + "_", font, 28);
+            nameText.setFillColor(sf::Color::White);
+            sf::FloatRect ntRect = nameText.getLocalBounds();
+            nameText.setOrigin(ntRect.left + ntRect.width / 2.f, 0.f);
+            nameText.setPosition(512.f, 340.f);
+            window.draw(nameText);
+        }
         else {
             if (hasSkillsMode) {
                 sf::RectangleShape skillsFrame(sf::Vector2f(174.f, 560.f));
@@ -904,26 +1226,22 @@ int main() {
                 window.draw(skillsFrame);
 
                 sf::Text skillsTitle("SKILLS", font, 18);
-                skillsTitle.setFillColor(sf::Color(46, 204, 113));
+                skillsTitle.setFillColor(sf::Color::White);
                 sf::FloatRect stRect = skillsTitle.getLocalBounds();
                 skillsTitle.setOrigin(stRect.left + stRect.width / 2.f, 0.f);
                 skillsTitle.setPosition(917.f, 130.f);
                 window.draw(skillsTitle);
             }
 
-            deck.draw(window);
-            dealerHand.draw(window, (state == PLAYER_TURN || state == DEALING_START) && !isDealerCardRevealed, isDealerCardRevealed && (state == PLAYER_TURN || state == DEALING_START));
-            for (auto& hand : playerHands) hand.draw(window);
-
             std::string statusStr = ecoStr + "Dealer:\nTotal: ";
-            if (state != PLAYER_TURN && state != DEALING_START || isDealerCardRevealed) statusStr += std::to_string(dealerHand.getTotal()) + "\n";
+            if (state != PLAYER_TURN && state != DEALING_START || isDealerCardRevealed) statusStr += std::to_string(dealerHandPtr->getTotal()) + "\n";
             else statusStr += "?\n";
 
             statusStr += "\nYou:\n";
             for (size_t i = 0; i < playerHands.size(); ++i) {
                 if (playerHands.size() > 1) statusStr += "Hand " + std::to_string(i + 1) + " ";
                 if ((state == PLAYER_TURN || state == DEALING_START) && i == activeHandIndex) statusStr += "(Active) ";
-                statusStr += "Total: " + std::to_string(playerHands[i].getTotal()) + "\n";
+                statusStr += "Total: " + std::to_string(playerHands[i]->getTotal()) + "\n";
             }
 
             statusStr += "\n";
@@ -932,14 +1250,14 @@ int main() {
                 if (isAnyAnimating) {
                     statusStr += "Dealing...";
                 } else {
-                    if (playerHands[activeHandIndex].getTotal() > 21){
+                    if (playerHands[activeHandIndex]->getTotal() > 21){
                         statusStr += "BUSTED!\n";
                     }else{
                          statusStr += "Choose action...";
                     }
-                    if (deck.getIsPeeking()) {
+                    if (deckPtr->getIsPeeking()) {
                         statusStr += "\nNext card: [ "
-                                     + deck.getPeekDescription()
+                                     + deckPtr->getPeekDescription()
                                      + " ]\n";
                     }
                 }
@@ -955,23 +1273,14 @@ int main() {
             uiText.setString(statusStr);
             uiText.setPosition(30.f, 150.f);
             window.draw(uiText);
+        }
 
-            if (state == PLAYER_TURN) {
-                hitBtn.draw(window);
-                standBtn.draw(window);
-                splitBtn.draw(window);
-                if (hasSkillsMode) {
-                    if (isPeekingChoiceActive) {
-                        peekDeckBtn.draw(window);
-                        peekDealerBtn.draw(window);
-                        cancelPeekBtn.draw(window);
-                    } else {
-                        lifelineBtn.draw(window);
-                        peekBtn.draw(window);
-                    }
-                }
-            } else if (state == GAME_OVER) {
-                newRoundBtn.draw(window);
+        dealerHandPtr->hideFirstCard = (state == PLAYER_TURN || state == DEALING_START) && !isDealerCardRevealed;
+        dealerHandPtr->transparentFirstCard = isDealerCardRevealed && (state == PLAYER_TURN || state == DEALING_START);
+
+        for (auto& obj : gameObjects) {
+            if (obj->shouldDraw(state)) {
+                obj->draw(window);
             }
         }
 

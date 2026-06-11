@@ -4,7 +4,8 @@ Button::Button(float x, float y, float width, float height,
                const std::string& buttonText, sf::Font& font, unsigned int characterSize) {
     shape.setPosition(x, y);
     shape.setSize(sf::Vector2f(width, height));
-
+    
+    // KOLORYSTYKA
     idleColor = sf::Color(20, 35, 25, 220);
     hoverColor = sf::Color(35, 75, 50, 230);
     activeColor = sf::Color(50, 115, 75, 255);
@@ -22,16 +23,31 @@ Button::Button(float x, float y, float width, float height,
     textDisabledColor = sf::Color(120, 120, 120, 180);
     text.setFillColor(textIdleColor);
 
-    // Center text origin
+    // Centrowanie tekstu
     sf::FloatRect textRect = text.getLocalBounds();
     text.setOrigin(textRect.left + textRect.width / 2.f, textRect.top + textRect.height / 2.f);
     text.setPosition(x + width / 2.f, y + height / 2.f);
 
     isHovered = false;
     isEnabled = true;
+    hasDrawState = false;
 }
 
-void Button::update(const sf::Vector2f& mousePos) {
+
+void Button::setDrawState(GameState state) {
+    drawState = state;
+    hasDrawState = true;
+}
+
+bool Button::shouldDraw(GameState state) const {
+    if (!isVisible) return false;
+    if (hasDrawState) {
+        return state == drawState;
+    }
+    return false;
+}
+
+void Button::updateMouse(const sf::Vector2f& mousePos) {
     if (!isEnabled) {
         shape.setFillColor(disabledColor);
         shape.setOutlineColor(sf::Color(60, 60, 60, 120));
@@ -66,9 +82,12 @@ void Button::setEnabled(bool enabled) {
     isEnabled = enabled;
 }
 
+void Button::setVisible(bool visible) {
+    isVisible = visible;
+}
+
 void Button::setPosition(float x, float y) {
     shape.setPosition(x, y);
-    sf::FloatRect textRect = text.getLocalBounds();
     text.setPosition(x + shape.getSize().x / 2.f, y + shape.getSize().y / 2.f);
 }
 
@@ -80,7 +99,7 @@ void Button::setText(const std::string& newText) {
 }
 
 ChipButton::ChipButton(float x, float y, int value, const std::string& label, sf::Font& font, sf::Texture& texture, sf::IntRect textureRect)
-    : chipValue(value), isHovered(false), isEnabled(true) {
+    : Button(x, y, 64.f, 72.f, "", font), chipValue(value) {
     sprite.setTexture(texture);
     sprite.setTextureRect(textureRect);
     sprite.setPosition(x, y);
@@ -95,9 +114,16 @@ ChipButton::ChipButton(float x, float y, int value, const std::string& label, sf
     sf::FloatRect textRect = text.getLocalBounds();
     text.setOrigin(textRect.left + textRect.width / 2.f, textRect.top + textRect.height / 2.f);
     text.setPosition(x + 32.f, y + 36.f);
+
+    setDrawState(BETTING);
 }
 
-void ChipButton::update(const sf::Vector2f& mousePos) {
+void ChipButton::draw(sf::RenderWindow& window) {
+    window.draw(sprite);
+    window.draw(text);
+}
+
+void ChipButton::updateMouse(const sf::Vector2f& mousePos) {
     if (!isEnabled) {
         sprite.setColor(sf::Color(100, 100, 100, 150));
         text.setFillColor(sf::Color(150, 150, 150, 150));
@@ -115,18 +141,9 @@ void ChipButton::update(const sf::Vector2f& mousePos) {
     }
 }
 
-void ChipButton::draw(sf::RenderWindow& window) {
-    window.draw(sprite);
-    window.draw(text);
-}
-
 bool ChipButton::isPressed(const sf::Vector2f& mousePos, bool mouseClicked) {
     if (!isEnabled) return false;
     return isHovered && mouseClicked;
-}
-
-void ChipButton::setEnabled(bool enabled) {
-    isEnabled = enabled;
 }
 
 void ChipButton::setTexture(const sf::Texture& texture) {

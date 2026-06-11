@@ -10,6 +10,7 @@ set(SFML_DIR "${CMAKE_CURRENT_SOURCE_DIR}/SFML-2.6.2-windows-gcc-13.1.0-mingw-64
 find_package(SFML 2.6 COMPONENTS graphics window system audio REQUIRED)
 
 add_executable(BLACKJACKPP
+    src/GameObject.h
     src/main.cpp
     src/TextureManager.h
     src/TextureManager.cpp
