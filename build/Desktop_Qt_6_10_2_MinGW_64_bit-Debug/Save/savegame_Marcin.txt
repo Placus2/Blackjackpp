@@ -1,4 +1,0 @@
-textures/Backgrounds/background_1.png
-textures/Tables/table_green.png.png
-textures/cardback/cardBackRed.png
-0
