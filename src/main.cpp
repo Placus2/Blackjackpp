@@ -21,6 +21,7 @@ struct Score {
     int value;
 };
 
+
 // Zwraca nazwe aktualnego uzytkownika systemu
 std::string getPlayerName() {
     const char* user = std::getenv("USER");
