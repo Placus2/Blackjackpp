@@ -1,6 +1,7 @@
 #include "Card.h"
 #include <cmath>
 
+// Aktualizuje animacje ruchu i rotacji pojedynczej karty
 void Card::updateAnimation(float dt) {
     if (!isAnimating) return;
 

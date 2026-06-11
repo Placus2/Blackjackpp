@@ -3,12 +3,14 @@
 #include <random>
 #include <algorithm>
 
+// Konstruktor klasy reprezentujacej talie kart
 Deck::Deck() : cardBackPath("textures/cardback/cardBackRed.png") {
     deckSprite.setTexture(texManager.get(cardBackPath));
     deckSprite.setPosition(730.f, 150.f);
     deckSprite.setScale(0.15f, 0.15f);
 }
 
+// Resetuje talie, tworzac 52 nowe karty i tasujac je
 void Deck::reset() {
     isPeeking = false;
     cards.clear();
@@ -36,12 +38,14 @@ void Deck::reset() {
     shuffle();
 }
 
+// Tasuje losowo karty w talii
 void Deck::shuffle() {
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(cards.begin(), cards.end(), g);
 }
 
+// Wyciaga karte z gory talii
 Card Deck::drawCard() {
     Card c = cards.back();
     cards.pop_back();
@@ -51,6 +55,8 @@ Card Deck::drawCard() {
     c.backSprite.setPosition(c.currentPos);
     return c;
 }
+
+// Aktywuje podglądanie nastepnej karty w talii
 void Deck::activatePeek(){
     if (cards.empty()) return;
     peekSprite = cards.back().frontSprite;
@@ -60,13 +66,19 @@ void Deck::activatePeek(){
     peekSprite.setColor(sf::Color(255, 255, 255, 180));
     isPeeking = true;
 }
+
+// Wylacza podglądanie karty
 void Deck::deactivatePeek(){
     isPeeking = false;
 }
+
+// Zwraca opis podgladanej karty (figure/wartosc)
 std::string Deck::getPeekDescription() const {
     if (!isPeeking || cards.empty()) return "";
     return cards.back().rank;
 }
+
+// Rysuje talie oraz ewentualny podglad karty na oknie gry
 void Deck::draw(sf::RenderWindow& window) {
     if (!cards.empty()) {
         window.draw(deckSprite);
@@ -76,12 +88,13 @@ void Deck::draw(sf::RenderWindow& window) {
     }
 }
 
+// Ustawia sciezke do tekstury rewersu kart
 void Deck::setCardBackPath(const std::string& path) {
     cardBackPath = path;
     deckSprite.setTexture(texManager.get(cardBackPath));
 }
 
-// CZY TALIA POWINNA BYC RYSOWANA
+// Okresla, czy talia powinna byc rysowana w danym stanie
 bool Deck::shouldDraw(GameState state) const {
     return state != MENU && state != GAMEPLAY_OPTIONS && state != SETTINGS && state != LEADERBOARD && state != PROFILE_SELECT && state != PROFILE_CREATE && state != GAME_OVER && state != BETTING;
 }

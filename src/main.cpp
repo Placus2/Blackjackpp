@@ -21,14 +21,14 @@ struct Score {
     int value;
 };
 
-// NAZWA GRACZA
+// Zwraca nazwe aktualnego uzytkownika systemu
 std::string getPlayerName() {
     const char* user = std::getenv("USER");
     if (!user) user = std::getenv("USERNAME");
     return user ? std::string(user) : "Player";
 }
 
-// ZAPIS WYNIKOW DO TABELI
+// Zapisuje najlepsze wyniki graczy do pliku tekstowego
 void saveHighscores(const std::vector<Score>& scores) {
     std::filesystem::create_directories("Save");
     std::ofstream file("Save/highscores.txt");
@@ -40,7 +40,7 @@ void saveHighscores(const std::vector<Score>& scores) {
     }
 }
 
-// WCZYTYWANIE TABELI Z PLIKU
+// Wczytuje najlepsze wyniki graczy z pliku tekstowego
 std::vector<Score> loadHighscores() {
     std::vector<Score> scores;
     std::ifstream file("Save/highscores.txt");
@@ -61,7 +61,7 @@ std::vector<Score> loadHighscores() {
     return scores;
 }
 
-// AKTUALIZOWANIE TABELI AKTUALNEGO GRACZA
+// Aktualizuje wynik gracza na liscie najlepszych wynikow i zapisuje dane
 void updateLeaderboard(const std::string& playerName, int newBalance) {
     auto scores = loadHighscores();
     bool found = false;
@@ -78,6 +78,7 @@ void updateLeaderboard(const std::string& playerName, int newBalance) {
     saveHighscores(scores);
 }
 
+// Dostosowuje widok okna gry, aby zachowac proporcje ekranu (Letterbox)
 sf::View getLetterboxView(sf::View view, int windowWidth, int windowHeight) {
     float windowRatio = (float)windowWidth / (float)windowHeight;
     float viewRatio = (float)view.getSize().x / (float)view.getSize().y;
@@ -102,7 +103,7 @@ sf::View getLetterboxView(sf::View view, int windowWidth, int windowHeight) {
     return view;
 }
 
-// ZAPIS GLOBALNYCH USTAWIEN
+// Zapisuje globalne ustawienia gry (tlo, stol, rewers, pelny ekran) do pliku
 void saveGlobalSettings(const std::string& bgPath, const std::string& tablePath, const std::string& cbPath, bool isFullscreen) {
     std::filesystem::create_directories("Save");
     std::ofstream file("Save/global_settings.txt");
@@ -111,7 +112,7 @@ void saveGlobalSettings(const std::string& bgPath, const std::string& tablePath,
     }
 }
 
-// ODCZYT GLOBALNYCH USTAWIEN
+// Wczytuje globalne ustawienia gry z pliku, lub ustawia domyslne
 void loadGlobalSettings(std::string& bgPath, std::string& tablePath, std::string& cbPath, bool& isFullscreen) {
     std::ifstream file("Save/global_settings.txt");
     bool success = false;
@@ -137,13 +138,13 @@ void loadGlobalSettings(std::string& bgPath, std::string& tablePath, std::string
     }
 }
 
-// ZAPIS SALDA
+// Zapisuje aktualne saldo punktow/pieniedzy gracza
 void saveBalance(const std::string& playerName, int balance) {
     if (playerName.empty()) return;
     updateLeaderboard(playerName, balance);
 }
 
-// ODCZYT SALDA
+// Wczytuje saldo punktow/pieniedzy gracza na podstawie jego nazwy
 void loadBalance(const std::string& playerName, int& balance) {
     auto scores = loadHighscores();
     for (const auto& s : scores) {
@@ -154,6 +155,7 @@ void loadBalance(const std::string& playerName, int& balance) {
     }
 }
 
+// Glowna funkcja programu, zarzadza petla gry i oknem aplikacji
 int main() {
     std::string currentPlayerName = "";
     std::string typedName = "";
@@ -255,6 +257,18 @@ int main() {
         tableSprite.setScale(1024.f / texSize.x, 768.f / texSize.y);
     };
     updateTableTexture(currentTablePath);
+
+    sf::Sprite logoSprite;
+    auto updateLogoTexture = [&]() {
+        sf::Texture& logoTex = texManager.get("textures/logo.png");
+        logoSprite.setTexture(logoTex, true);
+        logoSprite.setOrigin(logoTex.getSize().x / 2.f, logoTex.getSize().y / 2.f);
+        // Scale logo based on the original screenshot aspect ratio (587px width window)
+        float scaleVal = 1024.f / 587.f;
+        logoSprite.setScale(scaleVal, scaleVal);
+        logoSprite.setPosition(512.f, 175.f);
+    };
+    updateLogoTexture();
 
     // INTELIGENTNE WSKAZNIKI
     auto deckPtr = std::make_shared<Deck>();
@@ -530,6 +544,7 @@ int main() {
 
         updateBgTexture(currentBgPath);
         updateTableTexture(currentTablePath);
+        updateLogoTexture();
         deckPtr->setCardBackPath(currentCbPath);
 
         sf::Texture& chipsTex = texManager.get("textures/chips/Chips.png");
@@ -624,8 +639,12 @@ int main() {
                 splitBtn->setEnabled(canSplit && !isAnyAnimating && !isPeekingChoiceActive);
 
                 if (hasSkillsMode) {
-                    lifelineBtn->setEnabled(currentHand->getTotal() > 21 && !lifelineUsed && balance >= 25 && !isAnyAnimating && !isPeekingChoiceActive);
-                    peekBtn->setEnabled(!peekUsed && balance >= 25 && currentHand->getTotal() <= 21 && !isAnyAnimating && !isPeekingChoiceActive);
+                    int skillCost = std::max(1, currentBet / 4);
+                    lifelineBtn->setText("Minus card -" + std::to_string(skillCost) + "$");
+                    peekBtn->setText("Sneaky peeky -" + std::to_string(skillCost) + "$");
+
+                    lifelineBtn->setEnabled(currentHand->getTotal() > 21 && !lifelineUsed && balance >= skillCost && !isAnyAnimating && !isPeekingChoiceActive);
+                    peekBtn->setEnabled(!peekUsed && balance >= skillCost && currentHand->getTotal() <= 21 && !isAnyAnimating && !isPeekingChoiceActive);
                     
                     if (isPeekingChoiceActive) {
                         peekDeckBtn->setVisible(true);
@@ -843,16 +862,17 @@ int main() {
                                         }
                                     }
                                     else if (hasSkillsMode) {
+                                        int skillCost = std::max(1, currentBet / 4);
                                         if (isPeekingChoiceActive) {
-                                            if (btn == peekDeckBtn && balance >= 25) {
-                                                balance -= 25;
+                                            if (btn == peekDeckBtn && balance >= skillCost) {
+                                                balance -= skillCost;
                                                 peekUsed = true;
                                                 deckPtr->activatePeek();
                                                 isPeekingChoiceActive = false;
                                                 handleSound.play();
                                             }
-                                            else if (btn == peekDealerBtn && balance >= 25) {
-                                                balance -= 25;
+                                            else if (btn == peekDealerBtn && balance >= skillCost) {
+                                                balance -= skillCost;
                                                 peekUsed = true;
                                                 isDealerCardRevealed = true;
                                                 isPeekingChoiceActive = false;
@@ -862,8 +882,8 @@ int main() {
                                                 isPeekingChoiceActive = false;
                                             }
                                         } else {
-                                            if (btn == lifelineBtn && currentHand->getTotal() > 21 && !lifelineUsed && balance >= 25) {
-                                                balance -= 25;
+                                            if (btn == lifelineBtn && currentHand->getTotal() > 21 && !lifelineUsed && balance >= skillCost) {
+                                                balance -= skillCost;
                                                 lifelineUsed = true;
                                                 Card lifelineCard = deckPtr->drawCard();
                                                 lifelineCard.isSubstracting = true;
@@ -874,7 +894,7 @@ int main() {
                                                     activeHandIndex++;
                                                 }
                                             }
-                                            else if (btn == peekBtn && !peekUsed && balance >= 25 && currentHand->getTotal() <= 21) {
+                                            else if (btn == peekBtn && !peekUsed && balance >= skillCost && currentHand->getTotal() <= 21) {
                                                 isPeekingChoiceActive = true;
                                             }
                                         }
@@ -1046,15 +1066,14 @@ int main() {
         window.clear();
         window.draw(backgroundSprite);
         window.draw(tableSprite);
+        if (state == MENU) {
+            window.draw(logoSprite);
+        }
 
         std::string ecoStr = "Balance: $" + std::to_string(balance) + "\nBet: $" + std::to_string(currentBet) + "\n\n";
 
         if (state == MENU) {
-            uiText.setString("BLACKJACK PP");
-            sf::FloatRect textRect = uiText.getLocalBounds();
-            uiText.setOrigin(textRect.left + textRect.width / 2.f, textRect.top + textRect.height / 2.f);
-            uiText.setPosition(512.f, 170.f);
-            window.draw(uiText);
+            // No redundant white text "BLACKJACK PP" drawn on top of the table logo
         }
         else if (state == GAMEPLAY_OPTIONS) {
             uiText.setString("GAMEPLAY OPTIONS");
