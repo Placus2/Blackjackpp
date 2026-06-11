@@ -10,6 +10,7 @@ Deck::Deck() : cardBackPath("textures/cardback/cardBackRed.png") {
 }
 
 void Deck::reset() {
+    isPeeking = false;
     cards.clear();
     std::string folders[] = {"club", "diamond", "heart", "spade"};
     std::string suits[] = {"Clubs", "Diamonds", "Hearts", "Spades"};

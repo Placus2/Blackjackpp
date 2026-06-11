@@ -102,63 +102,55 @@ sf::View getLetterboxView(sf::View view, int windowWidth, int windowHeight) {
     return view;
 }
 
-// ZAPIS STANU GRY I USTAWIEN DO PLIKU
-void saveGame(const std::string& playerName, int balance, const std::string& bgPath, const std::string& tablePath, const std::string& cbPath, bool isFullscreen) {
-    if (playerName.empty()) return;
+// ZAPIS GLOBALNYCH USTAWIEN
+void saveGlobalSettings(const std::string& bgPath, const std::string& tablePath, const std::string& cbPath, bool isFullscreen) {
     std::filesystem::create_directories("Save");
-    std::ofstream file("Save/savegame_" + playerName + ".txt");
+    std::ofstream file("Save/global_settings.txt");
     if (file.is_open()) {
-        file << bgPath << "\n";
-        file << tablePath << "\n";
-        file << cbPath << "\n";
-        file << (isFullscreen ? 1 : 0) << "\n";
-        file.close();
+        file << bgPath << "\n" << tablePath << "\n" << cbPath << "\n" << (isFullscreen ? 1 : 0) << "\n";
     }
+}
+
+// ODCZYT GLOBALNYCH USTAWIEN
+void loadGlobalSettings(std::string& bgPath, std::string& tablePath, std::string& cbPath, bool& isFullscreen) {
+    std::ifstream file("Save/global_settings.txt");
+    bool success = false;
+    if (file.is_open()) {
+        std::vector<std::string> lines; std::string line;
+        while (std::getline(file, line)) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            lines.push_back(line);
+        }
+        if (lines.size() >= 4) {
+            try {
+                bgPath = lines[0]; tablePath = lines[1]; cbPath = lines[2]; isFullscreen = (std::stoi(lines[3]) != 0);
+                success = true;
+            } catch (...) { success = false; }
+        }
+    }
+    if (!success) {
+        bgPath = "textures/Backgrounds/background_1.png";
+        tablePath = "textures/Tables/table_green.png.png";
+        cbPath = "textures/cardback/cardBackRed.png";
+        isFullscreen = false;
+        saveGlobalSettings(bgPath, tablePath, cbPath, isFullscreen);
+    }
+}
+
+// ZAPIS SALDA
+void saveBalance(const std::string& playerName, int balance) {
+    if (playerName.empty()) return;
     updateLeaderboard(playerName, balance);
 }
 
-// WCZYTYWANIE STANU GRY I USTAWIEN Z PLIKU (BRAK = DOMYSLNE)
-void loadGame(const std::string& playerName, int& balance, std::string& bgPath, std::string& tablePath, std::string& cbPath, bool& isFullscreen) {
-    std::ifstream file("Save/savegame_" + playerName + ".txt");
-    bool success = false;
-    if (file.is_open()) {
-        std::vector<std::string> lines;
-        std::string line;
-        while (std::getline(file, line)) {
-            if (!line.empty() && line.back() == '\r') {
-                line.pop_back();
-            }
-            lines.push_back(line);
-        }
-        file.close();
-        if (lines.size() >= 4) {
-            try {
-                bgPath = lines[0];
-                tablePath = lines[1];
-                cbPath = lines[2];
-                isFullscreen = (std::stoi(lines[3]) != 0);
-                success = true;
-            } catch (...) {
-                success = false;
-            }
-        }
-    }
-    
-    // ODCZYT WYNIKOW Z BAZY
+// ODCZYT SALDA
+void loadBalance(const std::string& playerName, int& balance) {
     auto scores = loadHighscores();
     for (const auto& s : scores) {
         if (s.name == playerName) {
             balance = s.value;
             break;
         }
-    }
-    // DEFAULTOWE USTAWIENIA
-    if (!success) {
-        bgPath = "textures/Backgrounds/background_1.png";
-        tablePath = "textures/Tables/table_green.png.png";
-        cbPath = "textures/cardback/cardBackRed.png";
-        isFullscreen = false;
-        saveGame(playerName, balance, bgPath, tablePath, cbPath, isFullscreen);
     }
 }
 
@@ -170,6 +162,8 @@ int main() {
     std::string currentTablePath = "textures/Tables/table_green.png.png";
     std::string currentCbPath = "textures/cardback/cardBackRed.png";
     bool isFullscreen = false;
+
+    loadGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
 
     // TWORZENIE NOWEGO PROFILU GRACZA
     sf::Font tempFont;
@@ -586,7 +580,7 @@ int main() {
         resultMessage = "";
         dealerTimer = 0.f;
 
-        saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+        saveBalance(currentPlayerName, balance);
         rebuildGameObjects();
     };
 
@@ -681,11 +675,7 @@ int main() {
                         currentPlayerName = typedName;
                         balance = 1000;
                         updateLeaderboard(currentPlayerName, balance);
-                        loadGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                        updateBgTexture(currentBgPath);
-                        updateTableTexture(currentTablePath);
-                        deckPtr->setCardBackPath(currentCbPath);
-                        toggleWindowMode(isFullscreen);
+                        loadBalance(currentPlayerName, balance);
                         state = GAMEPLAY_OPTIONS;
                         updateGameplayOptionsLabels();
                     }
@@ -728,11 +718,7 @@ int main() {
                                         for (const auto& pBtn : profileBtns) {
                                             if (btn == pBtn) {
                                                 currentPlayerName = btn->getTextString();
-                                                loadGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                                                updateBgTexture(currentBgPath);
-                                                updateTableTexture(currentTablePath);
-                                                deckPtr->setCardBackPath(currentCbPath);
-                                                toggleWindowMode(isFullscreen);
+                                                loadBalance(currentPlayerName, balance);
                                                 state = GAMEPLAY_OPTIONS;
                                                 updateGameplayOptionsLabels();
                                                 break;
@@ -785,7 +771,7 @@ int main() {
                                 }
                                 else if (btn == startGameBtn) {
                                     state = BETTING;
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveBalance(currentPlayerName, balance);
                                 }
                                 else if (btn == backToMenuFromOptionsBtn) {
                                     state = MENU;
@@ -804,20 +790,20 @@ int main() {
                                 else if (btn == resetBetBtn) {
                                     balance += currentBet;
                                     currentBet = 0;
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveBalance(currentPlayerName, balance);
                                     handleSound.play();
                                 }
                                 else if (btn == backToMenuBtn) {
                                     state = MENU;
                                     needsRebuild = true;
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveBalance(currentPlayerName, balance);
                                 }
                                 else if (btn == dealBtn && currentBet > 0) {
                                     startRound();
                                 }
                                 else if (btn == bailoutBtn && balance == 0 && currentBet == 0) {
                                     balance = 1000;
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveBalance(currentPlayerName, balance);
                                     handleSound.play();
                                 }
                                 else if (state == PLAYER_TURN && !isAnyAnimating) {
@@ -897,55 +883,55 @@ int main() {
                                 else if (btn == bg1Btn) {
                                     currentBgPath = "textures/Backgrounds/background_1.png";
                                     updateBgTexture(currentBgPath);
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
                                     updateSettingsButtonLabels();
                                 }
                                 else if (btn == bg2Btn) {
                                     currentBgPath = "textures/Backgrounds/background_2.png";
                                     updateBgTexture(currentBgPath);
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
                                     updateSettingsButtonLabels();
                                 }
                                 else if (btn == tableGreenBtn) {
                                     currentTablePath = "textures/Tables/table_green.png.png";
                                     updateTableTexture(currentTablePath);
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
                                     updateSettingsButtonLabels();
                                 }
                                 else if (btn == tableBlueBtn) {
                                     currentTablePath = "textures/Tables/table_blue.png";
                                     updateTableTexture(currentTablePath);
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
                                     updateSettingsButtonLabels();
                                 }
                                 else if (btn == tableRedBtn) {
                                     currentTablePath = "textures/Tables/table_red.png";
                                     updateTableTexture(currentTablePath);
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
                                     updateSettingsButtonLabels();
                                 }
                                 else if (btn == cbRedBtn) {
                                     currentCbPath = "textures/cardback/cardBackRed.png";
                                     deckPtr->setCardBackPath(currentCbPath);
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
                                     updateSettingsButtonLabels();
                                 }
                                 else if (btn == cbBlueBtn) {
                                     currentCbPath = "textures/cardback/cardBackBlue.png";
                                     deckPtr->setCardBackPath(currentCbPath);
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
                                     updateSettingsButtonLabels();
                                 }
                                 else if (btn == cbGreenBtn) {
                                     currentCbPath = "textures/cardback/cardBackGreen.png";
                                     deckPtr->setCardBackPath(currentCbPath);
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
                                     updateSettingsButtonLabels();
                                 }
                                 else if (btn == fullscreenBtn) {
                                     isFullscreen = !isFullscreen;
                                     toggleWindowMode(isFullscreen);
-                                    saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
                                     updateSettingsButtonLabels();
                                 }
                                 else if (btn == backFromSettingsBtn) {
@@ -1050,7 +1036,7 @@ int main() {
                 }
             }
             // ZAPIS GRY DO TABELI WYNIKOW I PLIKU SAVEGAME
-            saveGame(currentPlayerName, balance, currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+            saveBalance(currentPlayerName, balance);
             updateLeaderboard(currentPlayerName, balance);
             
             rebuildProfileButtons();
