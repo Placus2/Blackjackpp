@@ -391,12 +391,12 @@ int main() {
     auto fullscreenBtn = std::make_shared<Button>(362.f, 430.f, 300.f, 50.f, "[ ] Fullscreen", font, 18);
     fullscreenBtn->setDrawState(SETTINGS);
     // Inicjalizacja przyciskow wyboru jezyka w ustawieniach
-    auto langEnBtn = std::make_shared<Button>(350.f, 500.f, 150.f, 45.f, "[ ] English", font, 18);
+    auto langEnBtn = std::make_shared<Button>(350.f, 530.f, 150.f, 45.f, "[ ] English", font, 18);
     langEnBtn->setDrawState(SETTINGS);
-    auto langPlBtn = std::make_shared<Button>(524.f, 500.f, 150.f, 45.f, "[ ] Polski", font, 18);
+    auto langPlBtn = std::make_shared<Button>(524.f, 530.f, 150.f, 45.f, "[ ] Polski", font, 18);
     langPlBtn->setDrawState(SETTINGS);
     // Usunięto resetProgressBtn
-    auto backFromSettingsBtn = std::make_shared<Button>(362.f, 570.f, 300.f, 50.f, "Back to Menu", font, 18);
+    auto backFromSettingsBtn = std::make_shared<Button>(362.f, 610.f, 300.f, 50.f, "Back to Menu", font, 18);
     backFromSettingsBtn->setDrawState(SETTINGS);
 
     // PRZYCISK POWROTU Z TABLICY WYNIKOW
@@ -1251,33 +1251,7 @@ int main() {
             cbLabel.setPosition(512.f, 310.f);
             window.draw(cbLabel);
 
-            sf::Sprite bgPreviewSprite;
-            sf::Texture& bgTex = texManager.get(currentBgPath);
-            bgPreviewSprite.setTexture(bgTex, true);
-            bgPreviewSprite.setPosition(70.f, 230.f);
-            bgPreviewSprite.setScale(140.f / bgTex.getSize().x, 105.f / bgTex.getSize().y);
-            window.draw(bgPreviewSprite);
-
-            sf::Sprite tablePreviewSprite;
-            sf::Texture& tableTex = texManager.get(currentTablePath);
-            tablePreviewSprite.setTexture(tableTex, true);
-            tablePreviewSprite.setPosition(70.f, 230.f);
-            tablePreviewSprite.setScale(140.f / tableTex.getSize().x, 105.f / tableTex.getSize().y);
-            window.draw(tablePreviewSprite);
-
-            sf::RectangleShape tableBorder(sf::Vector2f(140.f, 105.f));
-            tableBorder.setPosition(70.f, 230.f);
-            tableBorder.setFillColor(sf::Color::Transparent);
-            tableBorder.setOutlineColor(sf::Color(46, 204, 113));
-            tableBorder.setOutlineThickness(2.f);
-            window.draw(tableBorder);
-
-            sf::Text tablePreviewLabel(t("TABLE PREVIEW", "PODGLAD STOLU", isPolish), font, 16);
-            tablePreviewLabel.setFillColor(sf::Color::White);
-            sf::FloatRect tpRect = tablePreviewLabel.getLocalBounds();
-            tablePreviewLabel.setOrigin(tpRect.left + tpRect.width / 2.f, 0.f);
-            tablePreviewLabel.setPosition(140.f, 200.f);
-            window.draw(tablePreviewLabel);
+            // Usunieto podglad stolu z lewej strony, poniewaz nie jest juz potrzebny
 
             sf::Sprite cbPreviewSprite;
             sf::Texture& cbTex = texManager.get(currentCbPath);
@@ -1307,7 +1281,7 @@ int main() {
             langLabel.setFillColor(sf::Color::White);
             sf::FloatRect langRect = langLabel.getLocalBounds();
             langLabel.setOrigin(langRect.left + langRect.width / 2.f, 0.f);
-            langLabel.setPosition(512.f, 470.f);
+            langLabel.setPosition(512.f, 500.f);
             window.draw(langLabel);
         }
         else if (state == LEADERBOARD) {
