@@ -105,17 +105,17 @@ sf::View getLetterboxView(sf::View view, int windowWidth, int windowHeight) {
     return view;
 }
 
-// Zapisuje globalne ustawienia gry (tlo, stol, rewers, pelny ekran) do pliku
-void saveGlobalSettings(const std::string& bgPath, const std::string& tablePath, const std::string& cbPath, bool isFullscreen) {
+// Zapisuje globalne ustawienia gry (tlo, stol, rewers, pelny ekran, jezyk) do pliku
+void saveGlobalSettings(const std::string& bgPath, const std::string& tablePath, const std::string& cbPath, bool isFullscreen, bool isPolish) {
     std::filesystem::create_directories("Save");
     std::ofstream file("Save/global_settings.txt");
     if (file.is_open()) {
-        file << bgPath << "\n" << tablePath << "\n" << cbPath << "\n" << (isFullscreen ? 1 : 0) << "\n";
+        file << bgPath << "\n" << tablePath << "\n" << cbPath << "\n" << (isFullscreen ? 1 : 0) << "\n" << (isPolish ? 1 : 0) << "\n";
     }
 }
 
 // Wczytuje globalne ustawienia gry z pliku, lub ustawia domyslne
-void loadGlobalSettings(std::string& bgPath, std::string& tablePath, std::string& cbPath, bool& isFullscreen) {
+void loadGlobalSettings(std::string& bgPath, std::string& tablePath, std::string& cbPath, bool& isFullscreen, bool& isPolish) {
     std::ifstream file("Save/global_settings.txt");
     bool success = false;
     if (file.is_open()) {
@@ -124,9 +124,18 @@ void loadGlobalSettings(std::string& bgPath, std::string& tablePath, std::string
             if (!line.empty() && line.back() == '\r') line.pop_back();
             lines.push_back(line);
         }
-        if (lines.size() >= 4) {
+        if (lines.size() >= 5) {
             try {
-                bgPath = lines[0]; tablePath = lines[1]; cbPath = lines[2]; isFullscreen = (std::stoi(lines[3]) != 0);
+                bgPath = lines[0]; tablePath = lines[1]; cbPath = lines[2];
+                isFullscreen = (std::stoi(lines[3]) != 0);
+                isPolish = (std::stoi(lines[4]) != 0);
+                success = true;
+            } catch (...) { success = false; }
+        } else if (lines.size() == 4) {
+            try {
+                bgPath = lines[0]; tablePath = lines[1]; cbPath = lines[2];
+                isFullscreen = (std::stoi(lines[3]) != 0);
+                isPolish = false;
                 success = true;
             } catch (...) { success = false; }
         }
@@ -136,8 +145,14 @@ void loadGlobalSettings(std::string& bgPath, std::string& tablePath, std::string
         tablePath = "textures/Tables/table_green.png.png";
         cbPath = "textures/cardback/cardBackRed.png";
         isFullscreen = false;
-        saveGlobalSettings(bgPath, tablePath, cbPath, isFullscreen);
+        isPolish = false;
+        saveGlobalSettings(bgPath, tablePath, cbPath, isFullscreen, isPolish);
     }
+}
+
+// Zwraca tekst w zaleznosci od wybranego jezyka
+std::string t(const std::string& en, const std::string& pl, bool isPolish) {
+    return isPolish ? pl : en;
 }
 
 // Zapisuje aktualne saldo punktow/pieniedzy gracza
@@ -166,8 +181,10 @@ int main() {
     std::string currentTablePath = "textures/Tables/table_green.png.png";
     std::string currentCbPath = "textures/cardback/cardBackRed.png";
     bool isFullscreen = false;
+    // Stan wybranego jezyka (true = polski, false = angielski)
+    bool isPolish = false;
 
-    loadGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
+    loadGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
 
     // TWORZENIE NOWEGO PROFILU GRACZA
     sf::Font tempFont;
@@ -373,6 +390,11 @@ int main() {
 
     auto fullscreenBtn = std::make_shared<Button>(362.f, 430.f, 300.f, 50.f, "[ ] Fullscreen", font, 18);
     fullscreenBtn->setDrawState(SETTINGS);
+    // Inicjalizacja przyciskow wyboru jezyka w ustawieniach
+    auto langEnBtn = std::make_shared<Button>(350.f, 500.f, 150.f, 45.f, "[ ] English", font, 18);
+    langEnBtn->setDrawState(SETTINGS);
+    auto langPlBtn = std::make_shared<Button>(524.f, 500.f, 150.f, 45.f, "[ ] Polski", font, 18);
+    langPlBtn->setDrawState(SETTINGS);
     // Usunięto resetProgressBtn
     auto backFromSettingsBtn = std::make_shared<Button>(362.f, 570.f, 300.f, 50.f, "Back to Menu", font, 18);
     backFromSettingsBtn->setDrawState(SETTINGS);
@@ -383,47 +405,88 @@ int main() {
 
     auto updateSettingsButtonLabels = [&]() {
         if (currentBgPath == "textures/Backgrounds/background_1.png") {
-            bg1Btn->setText("[x] Bg 1");
-            bg2Btn->setText("[ ] Bg 2");
+            bg1Btn->setText(isPolish ? "[x] Tlo 1" : "[x] Bg 1");
+            bg2Btn->setText(isPolish ? "[ ] Tlo 2" : "[ ] Bg 2");
         } else {
-            bg1Btn->setText("[ ] Bg 1");
-            bg2Btn->setText("[x] Bg 2");
+            bg1Btn->setText(isPolish ? "[ ] Tlo 1" : "[ ] Bg 1");
+            bg2Btn->setText(isPolish ? "[x] Tlo 2" : "[x] Bg 2");
         }
 
         if (currentTablePath == "textures/Tables/table_green.png.png") {
-            tableGreenBtn->setText("[x] Green");
-            tableBlueBtn->setText("[ ] Blue");
-            tableRedBtn->setText("[ ] Red");
+            tableGreenBtn->setText(isPolish ? "[x] Zielony" : "[x] Green");
+            tableBlueBtn->setText(isPolish ? "[ ] Niebieski" : "[ ] Blue");
+            tableRedBtn->setText(isPolish ? "[ ] Czerwony" : "[ ] Red");
         } else if (currentTablePath == "textures/Tables/table_blue.png") {
-            tableGreenBtn->setText("[ ] Green");
-            tableBlueBtn->setText("[x] Blue");
-            tableRedBtn->setText("[ ] Red");
+            tableGreenBtn->setText(isPolish ? "[ ] Zielony" : "[ ] Green");
+            tableBlueBtn->setText(isPolish ? "[x] Niebieski" : "[x] Blue");
+            tableRedBtn->setText(isPolish ? "[ ] Czerwony" : "[ ] Red");
         } else {
-            tableGreenBtn->setText("[ ] Green");
-            tableBlueBtn->setText("[ ] Blue");
-            tableRedBtn->setText("[x] Red");
+            tableGreenBtn->setText(isPolish ? "[ ] Zielony" : "[ ] Green");
+            tableBlueBtn->setText(isPolish ? "[ ] Niebieski" : "[ ] Blue");
+            tableRedBtn->setText(isPolish ? "[x] Czerwony" : "[x] Red");
         }
 
         if (currentCbPath == "textures/cardback/cardBackRed.png") {
-            cbRedBtn->setText("[x] Red");
-            cbBlueBtn->setText("[ ] Blue");
-            cbGreenBtn->setText("[ ] Green");
+            cbRedBtn->setText(isPolish ? "[x] Czerwony" : "[x] Red");
+            cbBlueBtn->setText(isPolish ? "[ ] Niebieski" : "[ ] Blue");
+            cbGreenBtn->setText(isPolish ? "[ ] Zielony" : "[ ] Green");
         } else if (currentCbPath == "textures/cardback/cardBackBlue.png") {
-            cbRedBtn->setText("[ ] Red");
-            cbBlueBtn->setText("[x] Blue");
-            cbGreenBtn->setText("[ ] Green");
+            cbRedBtn->setText(isPolish ? "[ ] Czerwony" : "[ ] Red");
+            cbBlueBtn->setText(isPolish ? "[x] Niebieski" : "[x] Blue");
+            cbGreenBtn->setText(isPolish ? "[ ] Zielony" : "[ ] Green");
         } else {
-            cbRedBtn->setText("[ ] Red");
-            cbBlueBtn->setText("[ ] Blue");
-            cbGreenBtn->setText("[x] Green");
+            cbRedBtn->setText(isPolish ? "[ ] Czerwony" : "[ ] Red");
+            cbBlueBtn->setText(isPolish ? "[ ] Niebieski" : "[ ] Blue");
+            cbGreenBtn->setText(isPolish ? "[x] Zielony" : "[x] Green");
         }
 
         if (isFullscreen) {
-            fullscreenBtn->setText("[x] Fullscreen");
+            fullscreenBtn->setText(isPolish ? "[x] Pelny ekran" : "[x] Fullscreen");
         } else {
-            fullscreenBtn->setText("[ ] Fullscreen");
+            fullscreenBtn->setText(isPolish ? "[ ] Pelny ekran" : "[ ] Fullscreen");
+        }
+
+        if (isPolish) {
+            langEnBtn->setText("[ ] English");
+            langPlBtn->setText("[x] Polski");
+        } else {
+            langEnBtn->setText("[x] English");
+            langPlBtn->setText("[ ] Polski");
         }
     };
+
+    // Funkcja aktualizujaca etykiety wszystkich statycznych przyciskow w grze po zmianie jezyka
+    auto updateAllStaticLabels = [&]() {
+        playBtn->setText(t("PLAY", "GRAJ", isPolish));
+        settingsBtn->setText(t("SETTINGS", "USTAWIENIA", isPolish));
+        leaderboardBtn->setText(t("LEADERBOARD", "TABELA WYNIKOW", isPolish));
+        exitBtn->setText(t("EXIT GAME", "WYJDZ Z GRY", isPolish));
+        
+        startGameBtn->setText(t("START GAME", "URUCHOM GRE", isPolish));
+        backToMenuFromOptionsBtn->setText(t("BACK", "POWROT", isPolish));
+        
+        resetBetBtn->setText(t("Reset Bet", "Resetuj zaklad", isPolish));
+        dealBtn->setText(t("Deal", "Rozdaj", isPolish));
+        backToMenuBtn->setText(t("Back", "Powrot", isPolish));
+        bailoutBtn->setText(t("Recover $1000", "Odzyskaj 1000$", isPolish));
+        
+        hitBtn->setText(t("Hit", "Dobierz", isPolish));
+        standBtn->setText(t("Stand", "Pasuj", isPolish));
+        splitBtn->setText(t("Split", "Rozdziel", isPolish));
+        
+        peekDeckBtn->setText(t("Peek Deck", "Podgladaj talie", isPolish));
+        peekDealerBtn->setText(t("Peek Dealer", "Podgladaj krupiera", isPolish));
+        cancelPeekBtn->setText(t("Cancel", "Anuluj", isPolish));
+        
+        newRoundBtn->setText(t("New Round", "Nowa runda", isPolish));
+        backFromSettingsBtn->setText(t("Back to Menu", "Powrot do menu", isPolish));
+        leaderboardBackBtn->setText(t("BACK", "POWROT", isPolish));
+        
+        createProfileBtn->setText(t("NEW PROFILE", "NOWY PROFIL", isPolish));
+        backToMenuFromProfileBtn->setText(t("BACK TO MENU", "POWROT DO MENU", isPolish));
+        backFromProfileCreateBtn->setText(t("BACK", "POWROT", isPolish));
+    };
+    updateAllStaticLabels();
     updateSettingsButtonLabels();
 
     // TALIA KRUPIERA
@@ -446,19 +509,19 @@ int main() {
 
     auto updateGameplayOptionsLabels = [&]() {
         if (hasSkillsMode) {
-            modeClassicBtn->setText("[ ] Classic");
-            modeCustomBtn->setText("[x] Custom");
+            modeClassicBtn->setText(isPolish ? "[ ] Klasyczny" : "[ ] Classic");
+            modeCustomBtn->setText(isPolish ? "[x] Wlasny" : "[x] Custom");
         } else {
-            modeClassicBtn->setText("[x] Classic");
-            modeCustomBtn->setText("[ ] Custom");
+            modeClassicBtn->setText(isPolish ? "[x] Klasyczny" : "[x] Classic");
+            modeCustomBtn->setText(isPolish ? "[ ] Wlasny" : "[ ] Custom");
         }
 
         if (isHardMode) {
-            diffNormalBtn->setText("[ ] Normal");
-            diffHardBtn->setText("[x] Hard");
+            diffNormalBtn->setText(isPolish ? "[ ] Normalny" : "[ ] Normal");
+            diffHardBtn->setText(isPolish ? "[x] Trudny" : "[x] Hard");
         } else {
-            diffNormalBtn->setText("[x] Normal");
-            diffHardBtn->setText("[ ] Hard");
+            diffNormalBtn->setText(isPolish ? "[x] Normalny" : "[x] Normal");
+            diffHardBtn->setText(isPolish ? "[ ] Trudny" : "[ ] Hard");
         }
     };
     updateGameplayOptionsLabels();
@@ -530,6 +593,8 @@ int main() {
         gameObjects.push_back(cbBlueBtn);
         gameObjects.push_back(cbGreenBtn);
         gameObjects.push_back(fullscreenBtn);
+        gameObjects.push_back(langEnBtn);
+        gameObjects.push_back(langPlBtn);
         gameObjects.push_back(backFromSettingsBtn);
 
         gameObjects.push_back(leaderboardBackBtn);
@@ -650,12 +715,12 @@ int main() {
 
                 if (hasSkillsMode) {
                     int skillCost = std::max(1, currentBet / 4);
-                    lifelineBtn->setText("Minus card -" + std::to_string(skillCost) + "$");
-                    peekBtn->setText("Sneaky peeky -" + std::to_string(skillCost) + "$");
+                    lifelineBtn->setText(isPolish ? "Minus karta -" + std::to_string(skillCost) + "$" : "Minus card -" + std::to_string(skillCost) + "$");
+                    peekBtn->setText(isPolish ? "Podglad -" + std::to_string(skillCost) + "$" : "Sneaky peeky -" + std::to_string(skillCost) + "$");
                     
                     // Obliczenie kosztu i aktualizacja przycisku zamiany kart
                     int swapCost = std::max(1, currentBet / 2);
-                    swapBtn->setText("Zamiana kart -" + std::to_string(swapCost) + "$");
+                    swapBtn->setText(isPolish ? "Zamiana kart -" + std::to_string(swapCost) + "$" : "Swap cards -" + std::to_string(swapCost) + "$");
 
                     lifelineBtn->setEnabled(currentHand->getTotal() > 21 && !lifelineUsed && balance >= skillCost && !isAnyAnimating && !isPeekingChoiceActive);
                     peekBtn->setEnabled(!peekUsed && balance >= skillCost && currentHand->getTotal() <= 21 && !isAnyAnimating && !isPeekingChoiceActive);
@@ -940,63 +1005,79 @@ int main() {
                                     }
                                 }
                                 else if (btn == bg1Btn) {
-                                    currentBgPath = "textures/Backgrounds/background_1.png";
-                                    updateBgTexture(currentBgPath);
-                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                                    updateSettingsButtonLabels();
-                                }
-                                else if (btn == bg2Btn) {
-                                    currentBgPath = "textures/Backgrounds/background_2.png";
-                                    updateBgTexture(currentBgPath);
-                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                                    updateSettingsButtonLabels();
-                                }
-                                else if (btn == tableGreenBtn) {
-                                    currentTablePath = "textures/Tables/table_green.png.png";
-                                    updateTableTexture(currentTablePath);
-                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                                    updateSettingsButtonLabels();
-                                }
-                                else if (btn == tableBlueBtn) {
-                                    currentTablePath = "textures/Tables/table_blue.png";
-                                    updateTableTexture(currentTablePath);
-                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                                    updateSettingsButtonLabels();
-                                }
-                                else if (btn == tableRedBtn) {
-                                    currentTablePath = "textures/Tables/table_red.png";
-                                    updateTableTexture(currentTablePath);
-                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                                    updateSettingsButtonLabels();
-                                }
-                                else if (btn == cbRedBtn) {
-                                    currentCbPath = "textures/cardback/cardBackRed.png";
-                                    deckPtr->setCardBackPath(currentCbPath);
-                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                                    updateSettingsButtonLabels();
-                                }
-                                else if (btn == cbBlueBtn) {
-                                    currentCbPath = "textures/cardback/cardBackBlue.png";
-                                    deckPtr->setCardBackPath(currentCbPath);
-                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                                    updateSettingsButtonLabels();
-                                }
-                                else if (btn == cbGreenBtn) {
-                                    currentCbPath = "textures/cardback/cardBackGreen.png";
-                                    deckPtr->setCardBackPath(currentCbPath);
-                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                                    updateSettingsButtonLabels();
-                                }
-                                else if (btn == fullscreenBtn) {
-                                    isFullscreen = !isFullscreen;
-                                    toggleWindowMode(isFullscreen);
-                                    saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen);
-                                    updateSettingsButtonLabels();
-                                }
-                                else if (btn == backFromSettingsBtn) {
-                                    state = MENU;
-                                    needsRebuild = true;
-                                }
+                                     currentBgPath = "textures/Backgrounds/background_1.png";
+                                     updateBgTexture(currentBgPath);
+                                     saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
+                                     updateSettingsButtonLabels();
+                                 }
+                                 else if (btn == bg2Btn) {
+                                     currentBgPath = "textures/Backgrounds/background_2.png";
+                                     updateBgTexture(currentBgPath);
+                                     saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
+                                     updateSettingsButtonLabels();
+                                 }
+                                 else if (btn == tableGreenBtn) {
+                                     currentTablePath = "textures/Tables/table_green.png.png";
+                                     updateTableTexture(currentTablePath);
+                                     saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
+                                     updateSettingsButtonLabels();
+                                 }
+                                 else if (btn == tableBlueBtn) {
+                                     currentTablePath = "textures/Tables/table_blue.png";
+                                     updateTableTexture(currentTablePath);
+                                     saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
+                                     updateSettingsButtonLabels();
+                                 }
+                                 else if (btn == tableRedBtn) {
+                                     currentTablePath = "textures/Tables/table_red.png";
+                                     updateTableTexture(currentTablePath);
+                                     saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
+                                     updateSettingsButtonLabels();
+                                 }
+                                 else if (btn == cbRedBtn) {
+                                     currentCbPath = "textures/cardback/cardBackRed.png";
+                                     deckPtr->setCardBackPath(currentCbPath);
+                                     saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
+                                     updateSettingsButtonLabels();
+                                 }
+                                 else if (btn == cbBlueBtn) {
+                                     currentCbPath = "textures/cardback/cardBackBlue.png";
+                                     deckPtr->setCardBackPath(currentCbPath);
+                                     saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
+                                     updateSettingsButtonLabels();
+                                 }
+                                 else if (btn == cbGreenBtn) {
+                                     currentCbPath = "textures/cardback/cardBackGreen.png";
+                                     deckPtr->setCardBackPath(currentCbPath);
+                                     saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
+                                     updateSettingsButtonLabels();
+                                 }
+                                 else if (btn == fullscreenBtn) {
+                                     isFullscreen = !isFullscreen;
+                                     toggleWindowMode(isFullscreen);
+                                     saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
+                                     updateSettingsButtonLabels();
+                                 }
+                                 else if (btn == langEnBtn) {
+                                     isPolish = false;
+                                     updateAllStaticLabels();
+                                     updateSettingsButtonLabels();
+                                     updateGameplayOptionsLabels();
+                                     saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
+                                     handleSound.play();
+                                 }
+                                 else if (btn == langPlBtn) {
+                                     isPolish = true;
+                                     updateAllStaticLabels();
+                                     updateSettingsButtonLabels();
+                                     updateGameplayOptionsLabels();
+                                     saveGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
+                                     handleSound.play();
+                                 }
+                                 else if (btn == backFromSettingsBtn) {
+                                     state = MENU;
+                                     needsRebuild = true;
+                                 }
                                 else if (btn == newRoundBtn) {
                                     currentBet = 0;
                                     state = BETTING;
@@ -1072,28 +1153,28 @@ int main() {
             float betPerHand = (playerHands.size() > 1) ? (currentBet / 2.f) : (float)currentBet;
 
             for (size_t i = 0; i < playerHands.size(); ++i) {
-                int pTotal = playerHands[i]->getTotal();
-                bool isBlackjack = (playerHands.size() == 1 && playerHands[i]->cards.size() == 2 && pTotal == 21);
-                std::string prefix = playerHands.size() > 1 ? ("Hand " + std::to_string(i + 1) + ": ") : "";
+                                int pTotal = playerHands[i]->getTotal();
+                                bool isBlackjack = (playerHands.size() == 1 && playerHands[i]->cards.size() == 2 && pTotal == 21);
+                                std::string prefix = playerHands.size() > 1 ? (isPolish ? ("Reka " + std::to_string(i + 1) + ": ") : ("Hand " + std::to_string(i + 1) + ": ")) : "";
 
-                if (pTotal > 21) {
-                    resultMessage += prefix + "Busted.\n";
-                } else if (isBlackjack && dTotal != 21) {
-                    resultMessage += prefix + "BLACKJACK!\n";
-                    balance += static_cast<int>(betPerHand * (isHardMode ? 3.0f : 2.5f));
-                } else if (dTotal > 21) {
-                    resultMessage += prefix + "Dealer busted! You win!\n";
-                    balance += static_cast<int>(betPerHand * (isHardMode ? 2.5f : 2.0f));
-                } else if (pTotal > dTotal) {
-                    resultMessage += prefix + "You win!\n";
-                    balance += static_cast<int>(betPerHand * (isHardMode ? 2.5f : 2.0f));
-                } else if (dTotal > pTotal) {
-                    resultMessage += prefix + "You lose.\n";
-                } else {
-                    resultMessage += prefix + "Push.\n";
-                    balance += static_cast<int>(betPerHand);
-                }
-            }
+                                if (pTotal > 21) {
+                                    resultMessage += prefix + (isPolish ? "Fura.\n" : "Busted.\n");
+                                } else if (isBlackjack && dTotal != 21) {
+                                    resultMessage += prefix + "BLACKJACK!\n";
+                                    balance += static_cast<int>(betPerHand * (isHardMode ? 3.0f : 2.5f));
+                                } else if (dTotal > 21) {
+                                    resultMessage += prefix + (isPolish ? "Krupier przekroczyl limit! Wygrywasz!\n" : "Dealer busted! You win!\n");
+                                    balance += static_cast<int>(betPerHand * (isHardMode ? 2.5f : 2.0f));
+                                } else if (pTotal > dTotal) {
+                                    resultMessage += prefix + (isPolish ? "Wygrywasz!\n" : "You win!\n");
+                                    balance += static_cast<int>(betPerHand * (isHardMode ? 2.5f : 2.0f));
+                                } else if (dTotal > pTotal) {
+                                    resultMessage += prefix + (isPolish ? "Przegrywasz.\n" : "You lose.\n");
+                                } else {
+                                    resultMessage += prefix + (isPolish ? "Remis.\n" : "Push.\n");
+                                    balance += static_cast<int>(betPerHand);
+                                }
+                            }
             // ZAPIS GRY DO TABELI WYNIKOW I PLIKU SAVEGAME
             saveBalance(currentPlayerName, balance);
             updateLeaderboard(currentPlayerName, balance);
@@ -1109,26 +1190,26 @@ int main() {
             window.draw(logoSprite);
         }
 
-        std::string ecoStr = "Balance: $" + std::to_string(balance) + "\nBet: $" + std::to_string(currentBet) + "\n\n";
+        std::string ecoStr = (isPolish ? "Saldo: $" : "Balance: $") + std::to_string(balance) + (isPolish ? "\nZaklad: $" : "\nBet: $") + std::to_string(currentBet) + "\n\n";
 
         if (state == MENU) {
             // No redundant white text "BLACKJACK PP" drawn on top of the table logo
         }
         else if (state == GAMEPLAY_OPTIONS) {
-            uiText.setString("GAMEPLAY OPTIONS");
+            uiText.setString(t("GAMEPLAY OPTIONS", "OPCJE ROZGRYWKI", isPolish));
             sf::FloatRect textRect = uiText.getLocalBounds();
             uiText.setOrigin(textRect.left + textRect.width / 2.f, 0.f);
             uiText.setPosition(512.f, 100.f);
             window.draw(uiText);
 
-            sf::Text modeLabel("SELECT GAMEPLAY MODE:", font, 18);
+            sf::Text modeLabel(t("SELECT GAMEPLAY MODE:", "WYBIERZ TRYB ROZGRYWKI:", isPolish), font, 18);
             modeLabel.setFillColor(sf::Color::White);
             sf::FloatRect modeRect = modeLabel.getLocalBounds();
             modeLabel.setOrigin(modeRect.left + modeRect.width / 2.f, 0.f);
             modeLabel.setPosition(512.f, 170.f);
             window.draw(modeLabel);
 
-            sf::Text diffLabel("SELECT DIFFICULTY:", font, 18);
+            sf::Text diffLabel(t("SELECT DIFFICULTY:", "WYBIERZ POZIOM TRUDNOSCI:", isPolish), font, 18);
             diffLabel.setFillColor(sf::Color::White);
             sf::FloatRect diffRect = diffLabel.getLocalBounds();
             diffLabel.setOrigin(diffRect.left + diffRect.width / 2.f, 0.f);
@@ -1136,34 +1217,34 @@ int main() {
             window.draw(diffLabel);
         }
         else if (state == BETTING) {
-            uiText.setString(ecoStr + "PLACE YOUR BET:");
+            uiText.setString(ecoStr + t("PLACE YOUR BET:", "OBSTAW ZAKLAD:", isPolish));
             sf::FloatRect textRect = uiText.getLocalBounds();
             uiText.setOrigin(textRect.left + textRect.width / 2.f, 0.f);
             uiText.setPosition(512.f, 150.f);
             window.draw(uiText);
         }
         else if (state == SETTINGS) {
-            uiText.setString("GAME SETTINGS");
+            uiText.setString(t("GAME SETTINGS", "USTAWIENIA GRY", isPolish));
             sf::FloatRect textRect = uiText.getLocalBounds();
             uiText.setOrigin(textRect.left + textRect.width / 2.f, 0.f);
             uiText.setPosition(512.f, 80.f);
             window.draw(uiText);
 
-            sf::Text bgLabel("SELECT BACKGROUND:", font, 18);
+            sf::Text bgLabel(t("SELECT BACKGROUND:", "WYBIERZ TLO:", isPolish), font, 18);
             bgLabel.setFillColor(sf::Color::White);
             sf::FloatRect bgRect = bgLabel.getLocalBounds();
             bgLabel.setOrigin(bgRect.left + bgRect.width / 2.f, 0.f);
             bgLabel.setPosition(512.f, 130.f);
             window.draw(bgLabel);
 
-            sf::Text tableLabel("SELECT TABLE:", font, 18);
+            sf::Text tableLabel(t("SELECT TABLE:", "WYBIERZ STOL:", isPolish), font, 18);
             tableLabel.setFillColor(sf::Color::White);
             sf::FloatRect tableRect = tableLabel.getLocalBounds();
             tableLabel.setOrigin(tableRect.left + tableRect.width / 2.f, 0.f);
             tableLabel.setPosition(512.f, 220.f);
             window.draw(tableLabel);
 
-            sf::Text cbLabel("SELECT CARD BACK:", font, 18);
+            sf::Text cbLabel(t("SELECT CARD BACK:", "WYBIERZ REWERS KARTY:", isPolish), font, 18);
             cbLabel.setFillColor(sf::Color::White);
             sf::FloatRect cbRect = cbLabel.getLocalBounds();
             cbLabel.setOrigin(cbRect.left + cbRect.width / 2.f, 0.f);
@@ -1191,7 +1272,7 @@ int main() {
             tableBorder.setOutlineThickness(2.f);
             window.draw(tableBorder);
 
-            sf::Text tablePreviewLabel("TABLE PREVIEW", font, 16);
+            sf::Text tablePreviewLabel(t("TABLE PREVIEW", "PODGLAD STOLU", isPolish), font, 16);
             tablePreviewLabel.setFillColor(sf::Color::White);
             sf::FloatRect tpRect = tablePreviewLabel.getLocalBounds();
             tablePreviewLabel.setOrigin(tpRect.left + tpRect.width / 2.f, 0.f);
@@ -1214,12 +1295,20 @@ int main() {
             cbBorder.setOutlineThickness(2.f);
             window.draw(cbBorder);
 
-            sf::Text cbPreviewLabel("CARD BACK PREVIEW", font, 16);
+            sf::Text cbPreviewLabel(t("CARD BACK PREVIEW", "PODGLAD REWERSU", isPolish), font, 16);
             cbPreviewLabel.setFillColor(sf::Color::White);
             sf::FloatRect cbpRect = cbPreviewLabel.getLocalBounds();
             cbPreviewLabel.setOrigin(cbpRect.left + cbpRect.width / 2.f, 0.f);
             cbPreviewLabel.setPosition(884.f, 200.f);
             window.draw(cbPreviewLabel);
+
+            // Rysowanie napisu wyboru jezyka w ustawieniach
+            sf::Text langLabel(t("SELECT LANGUAGE:", "WYBIERZ JEZYK:", isPolish), font, 18);
+            langLabel.setFillColor(sf::Color::White);
+            sf::FloatRect langRect = langLabel.getLocalBounds();
+            langLabel.setOrigin(langRect.left + langRect.width / 2.f, 0.f);
+            langLabel.setPosition(512.f, 470.f);
+            window.draw(langLabel);
         }
         else if (state == LEADERBOARD) {
             // RYSOWANIE LABELI
@@ -1230,7 +1319,7 @@ int main() {
             frame.setOutlineThickness(3.f);
             window.draw(frame);
 
-            uiText.setString("LEADERBOARD");
+            uiText.setString(t("LEADERBOARD", "TABELA WYNIKOW", isPolish));
             uiText.setCharacterSize(28);
             uiText.setFillColor(sf::Color::White);
             sf::FloatRect textRect = uiText.getLocalBounds();
@@ -1273,7 +1362,7 @@ int main() {
             }
         }
         else if (state == PROFILE_SELECT) {
-            sf::Text titleText("SELECT PLAYER PROFILE", font, 36);
+            sf::Text titleText(t("SELECT PLAYER PROFILE", "WYBIERZ PROFIL GRACZA", isPolish), font, 36);
             titleText.setFillColor(sf::Color::White);
             sf::FloatRect ttRect = titleText.getLocalBounds();
             titleText.setOrigin(ttRect.left + ttRect.width / 2.f, 0.f);
@@ -1288,7 +1377,7 @@ int main() {
             frame.setOutlineThickness(3.f);
             window.draw(frame);
 
-            sf::Text promptText("Enter player name:", font, 24);
+            sf::Text promptText(t("Enter player name:", "Wpisz nazwe gracza:", isPolish), font, 24);
             promptText.setFillColor(sf::Color::White);
             sf::FloatRect ptRect = promptText.getLocalBounds();
             promptText.setOrigin(ptRect.left + ptRect.width / 2.f, 0.f);
@@ -1311,7 +1400,7 @@ int main() {
                 skillsFrame.setOutlineThickness(2.f);
                 window.draw(skillsFrame);
 
-                sf::Text skillsTitle("SKILLS", font, 18);
+                sf::Text skillsTitle(t("SKILLS", "UMIEJETNOSCI", isPolish), font, 18);
                 skillsTitle.setFillColor(sf::Color::White);
                 sf::FloatRect stRect = skillsTitle.getLocalBounds();
                 skillsTitle.setOrigin(stRect.left + stRect.width / 2.f, 0.f);
@@ -1319,40 +1408,45 @@ int main() {
                 window.draw(skillsTitle);
             }
 
-            std::string statusStr = ecoStr + "Dealer:\nTotal: ";
+            std::string statusStr = ecoStr + t("Dealer:\nTotal: ", "Krupier:\nSuma: ", isPolish);
             if (state != PLAYER_TURN && state != DEALING_START || isDealerCardRevealed) statusStr += std::to_string(dealerHandPtr->getTotal()) + "\n";
             else statusStr += "?\n";
 
-            statusStr += "\nYou:\n";
+            statusStr += t("\nYou:\n", "\nGracz:\n", isPolish);
             for (size_t i = 0; i < playerHands.size(); ++i) {
-                if (playerHands.size() > 1) statusStr += "Hand " + std::to_string(i + 1) + " ";
-                if ((state == PLAYER_TURN || state == DEALING_START) && i == activeHandIndex) statusStr += "(Active) ";
-                statusStr += "Total: " + std::to_string(playerHands[i]->getTotal()) + "\n";
+                if (playerHands.size() > 1) statusStr += t("Hand ", "Reka ", isPolish) + std::to_string(i + 1) + " ";
+                if ((state == PLAYER_TURN || state == DEALING_START) && i == activeHandIndex) statusStr += t("(Active) ", "(Aktywna) ", isPolish);
+                statusStr += t("Total: ", "Suma: ", isPolish) + std::to_string(playerHands[i]->getTotal()) + "\n";
             }
 
             statusStr += "\n";
 
             if (state == PLAYER_TURN) {
                 if (isAnyAnimating) {
-                    statusStr += "Dealing...";
+                    statusStr += t("Dealing...", "Rozdawanie...", isPolish);
                 } else {
                     if (playerHands[activeHandIndex]->getTotal() > 21){
-                        statusStr += "BUSTED!\n";
+                        statusStr += t("BUSTED!\n", "FURA!\n", isPolish);
                     }else{
-                         statusStr += "Choose action...";
+                         statusStr += t("Choose action...", "Wybierz akcje...", isPolish);
                     }
                     if (deckPtr->getIsPeeking()) {
-                        statusStr += "\nNext card: [ "
-                                     + deckPtr->getPeekDescription()
+                        std::string rank = deckPtr->getPeekDescription();
+                        if (isPolish) {
+                            if (rank == "J") rank = "W";
+                            else if (rank == "Q") rank = "D";
+                        }
+                        statusStr += t("\nNext card: [ ", "\nNastepna karta: [ ", isPolish)
+                                     + rank
                                      + " ]\n";
                     }
                 }
             } else if (state == GAME_OVER) {
-                statusStr += "RESULT:\n" + resultMessage;
+                statusStr += t("RESULT:\n", "WYNIK:\n", isPolish) + resultMessage;
             } else if (state == DEALER_TURN) {
-                statusStr += "Dealer's Turn...";
+                statusStr += t("Dealer's Turn...", "Tura Krupiera...", isPolish);
             } else if (state == DEALING_START) {
-                statusStr += "Dealing cards...";
+                statusStr += t("Dealing cards...", "Rozdawanie kart...", isPolish);
             }
 
             uiText.setOrigin(0.f, 0.f);
