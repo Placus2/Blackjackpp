@@ -117,6 +117,7 @@ private:
     std::shared_ptr<Button> hitBtn;
     std::shared_ptr<Button> standBtn;
     std::shared_ptr<Button> splitBtn;
+    std::shared_ptr<Button> doubleBtn;
     std::shared_ptr<Button> lifelineBtn;
     std::shared_ptr<Button> peekBtn;
     std::shared_ptr<Button> swapBtn;

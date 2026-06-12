@@ -139,6 +139,8 @@ Game::Game() : state(MENU), balance(1000), isFullscreen(false), isPolish(false),
     standBtn->setDrawState(PLAYER_TURN);
     splitBtn = std::make_shared<Button>(412.f, 690.f, 120.f, 45.f, "Split", font, 18);
     splitBtn->setDrawState(PLAYER_TURN);
+    doubleBtn = std::make_shared<Button>(552.f, 690.f, 120.f, 45.f, "Double", font, 18);
+    doubleBtn->setDrawState(PLAYER_TURN);
 
     lifelineBtn = std::make_shared<Button>(842.f, 170.f, 150.f, 45.f, "Minus card -25$", font, 14);
     lifelineBtn->setDrawState(PLAYER_TURN);
@@ -244,6 +246,7 @@ void Game::run() {
                 hitBtn->setEnabled(currentHand->getTotal() <= 21 && !isAnyAnimating && !isPeekingChoiceActive);
                 standBtn->setEnabled(!isAnyAnimating && !isPeekingChoiceActive);
                 splitBtn->setEnabled(canSplit && !isAnyAnimating && !isPeekingChoiceActive);
+                doubleBtn->setEnabled(playerHands.size() == 1 && currentHand->cards.size() == 2 && balance >= currentBet && !isAnyAnimating && !isPeekingChoiceActive);
 
                 if (hasSkillsMode) {
                     int skillCost = std::max(1, currentBet / 4);
@@ -455,6 +458,15 @@ void Game::run() {
                                     }
                                     else if (btn == standBtn) {
                                         activeHandIndex++;
+                                    }
+                                    else if (btn == doubleBtn) {
+                                        if (playerHands.size() == 1 && currentHand->cards.size() == 2 && balance >= currentBet) {
+                                            balance -= currentBet;
+                                            currentBet *= 2;
+                                            currentHand->addCard(deckPtr->drawCard());
+                                            soundManager.play(SoundType::PLACE);
+                                            activeHandIndex++;
+                                        }
                                     }
                                     else if (btn == splitBtn) {
                                         bool canSplit = (playerHands.size() == 1 && currentHand->cards.size() == 2 &&
@@ -1103,6 +1115,7 @@ void Game::updateAllStaticLabels() {
     hitBtn->setText(t("Hit", "Dobierz", isPolish));
     standBtn->setText(t("Stand", "Pasuj", isPolish));
     splitBtn->setText(t("Split", "Rozdziel", isPolish));
+    doubleBtn->setText(t("Double", "Podwoj", isPolish));
     
     peekDeckBtn->setText(t("Peek Deck", "Podgladaj talie", isPolish));
     peekDealerBtn->setText(t("Peek Dealer", "Podgladaj krupiera", isPolish));
@@ -1181,6 +1194,7 @@ void Game::rebuildGameObjects() {
     gameObjects.push_back(hitBtn);
     gameObjects.push_back(standBtn);
     gameObjects.push_back(splitBtn);
+    gameObjects.push_back(doubleBtn);
 
     gameObjects.push_back(lifelineBtn);
     gameObjects.push_back(peekBtn);
