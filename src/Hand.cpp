@@ -1,15 +1,15 @@
 #include "Hand.h"
 
-// Konstruktor klasy reprezentujacej reke gracza lub krupiera
+// Inicjuje reke
 Hand::Hand(sf::Vector2f position) : startPos(position) {}
 
-// Dodaje karte do reki i aktualizuje pozycje animacji
+// Dodaje karte do reki
 void Hand::addCard(Card c) {
     cards.push_back(c);
     updateCardPositions();
 }
 
-// Aktualizuje docelowe pozycje kart w rece, dopasowujac odstepy
+// Wylicza uklad kart na ekranie
 void Hand::updateCardPositions() {
     float spacing = 60.f;
     float max_width = 150.f;
@@ -26,7 +26,7 @@ void Hand::updateCardPositions() {
     }
 }
 
-// Oblicza sume punktow kart w rece, uwzgledniajac asy i karty odejmujace
+// Oblicza sume punktow reki
 int Hand::getTotal() const {
     int sum = 0, aces = 0;
     for (const auto& c : cards) {
@@ -44,12 +44,12 @@ int Hand::getTotal() const {
     return sum;
 }
 
-// Rysuje karty w rece na oknie gry
+// Rysuje karty na ekranie
 void Hand::draw(sf::RenderWindow& window) {
     draw(window, hideFirstCard, transparentFirstCard);
 }
 
-// Rysuje karty z opcjami ukrycia lub polprzezroczystosci pierwszej karty
+// Rysuje karty krupiera uwzgledniajac zakryta karte
 void Hand::draw(sf::RenderWindow& window, bool hideFirstCardVal, bool transparentFirstCardVal) {
     for (size_t i = 0; i < cards.size(); ++i) {
         if (i == 0 && hideFirstCardVal) {
@@ -67,12 +67,12 @@ void Hand::draw(sf::RenderWindow& window, bool hideFirstCardVal, bool transparen
     }
 }
 
-// Okresla, czy reka powinna byc rysowana w danym stanie gry
+// Sprawdza czy reka jest widoczna w danym stanie gry
 bool Hand::shouldDraw(GameState state) const {
     return state != MENU && state != GAMEPLAY_OPTIONS && state != SETTINGS && state != LEADERBOARD && state != BETTING && state != PROFILE_SELECT && state != PROFILE_CREATE;
 }
 
-// Aktualizuje animacje ruchu wszystkich kart w rece
+// Aktualizuje animacje kart
 void Hand::update(float dt) {
     for (auto& c : cards) {
         c.updateAnimation(dt);

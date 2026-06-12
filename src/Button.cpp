@@ -57,6 +57,7 @@ void Button::updateMouse(const sf::Vector2f& mousePos) {
         text.setFillColor(textDisabledColor);
         return;
     }
+    
 
     if (shape.getGlobalBounds().contains(mousePos)) {
         isHovered = true;

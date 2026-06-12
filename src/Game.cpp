@@ -2,14 +2,14 @@
 #include <iostream>
 #include <filesystem>
 
-// Zwraca nazwe aktualnego uzytkownika systemu
+// Pobiera nazwe uzytkownika systemu operacyjnego
 std::string getPlayerName() {
     const char* user = std::getenv("USER");
     if (!user) user = std::getenv("USERNAME");
     return user ? std::string(user) : "Player";
 }
 
-// Dostosowuje widok okna gry, aby zachowac proporcje ekranu (Letterbox)
+// Skaluje widok z zachowaniem proporcji ekranu
 sf::View getLetterboxView(sf::View view, int windowWidth, int windowHeight) {
     float windowRatio = (float)windowWidth / (float)windowHeight;
     float viewRatio = (float)view.getSize().x / (float)view.getSize().y;
@@ -34,7 +34,7 @@ sf::View getLetterboxView(sf::View view, int windowWidth, int windowHeight) {
     return view;
 }
 
-// Zwraca tekst w zaleznosci od wybranego jezyka
+// Tlumaczy tekst w zaleznosci od jezyka
 std::string t(const std::string& en, const std::string& pl, bool isPolish) {
     return isPolish ? pl : en;
 }
@@ -53,7 +53,7 @@ Game::Game() : state(MENU), balance(1000), isFullscreen(false), isPolish(false),
     loadGlobalSettings(currentBgPath, currentTablePath, currentCbPath, isFullscreen, isPolish);
 
 
-    // sf::Font tempFont;
+
     tempFont.loadFromFile("textures/arial.ttf");
     createProfileBtn = std::make_shared<Button>(362.f, 600.f, 300.f, 50.f, "NEW PROFILE", tempFont, 20);
     createProfileBtn->setDrawState(PROFILE_SELECT);
@@ -64,10 +64,7 @@ Game::Game() : state(MENU), balance(1000), isFullscreen(false), isPolish(false),
     backFromProfileCreateBtn = std::make_shared<Button>(362.f, 660.f, 300.f, 50.f, "BACK", tempFont, 20);
     backFromProfileCreateBtn->setDrawState(PROFILE_CREATE);
     
-    // profileBtns i deleteProfileBtns są klasowe
     rebuildProfileButtons();
-    // Dźwięki są teraz obsługiwane przez SoundManager, który jest członkiem klasy.
-    // RENDEROWANIE OKNA
     if (isFullscreen) {
         window.create(sf::VideoMode::getDesktopMode(), "BLACKJACK PP", sf::Style::Fullscreen);
     } else {
@@ -78,37 +75,28 @@ Game::Game() : state(MENU), balance(1000), isFullscreen(false), isPolish(false),
     gameView = sf::View(sf::FloatRect(0.f, 0.f, 1024.f, 768.f));
     gameView = getLetterboxView(gameView, window.getSize().x, window.getSize().y);
     window.setView(gameView);
-    // WCZYTANIE CZCIONKI
-    // sf::Font font;
     if (!font.loadFromFile("textures/arial.ttf")) {
         std::cerr << "Error: textures/arial.ttf not found!" << std::endl;
         // return -1;
     }
 
-    // sf::Sprite backgroundSprite;
     updateBgTexture(currentBgPath);
-
-    // sf::Sprite tableSprite;
     updateTableTexture(currentTablePath);
-
-    // sf::Sprite logoSprite;
     updateLogoTexture();
 
-    // INTELIGENTNE WSKAZNIKI
     deckPtr = std::make_shared<Deck>();
     deckPtr->setCardBackPath(currentCbPath);
 
-    // PRZYCISKI MENU
     playBtn = std::make_shared<Button>(362.f, 260.f, 300.f, 50.f, "PLAY", font, 20);
     playBtn->setDrawState(MENU);
     settingsBtn = std::make_shared<Button>(362.f, 330.f, 300.f, 50.f, "SETTINGS", font, 20);
     settingsBtn->setDrawState(MENU);
     leaderboardBtn = std::make_shared<Button>(362.f, 400.f, 300.f, 50.f, "LEADERBOARD", font, 20);
     leaderboardBtn->setDrawState(MENU);
+
     exitBtn = std::make_shared<Button>(362.f, 470.f, 300.f, 50.f, "EXIT GAME", font, 20);
     exitBtn->setDrawState(MENU);
 
-    // PRZYCISKI OPCJI ROZGRYWKI
     modeClassicBtn = std::make_shared<Button>(272.f, 210.f, 230.f, 45.f, "Classic", font, 18);
     modeClassicBtn->setDrawState(GAMEPLAY_OPTIONS);
     modeCustomBtn = std::make_shared<Button>(522.f, 210.f, 230.f, 45.f, "Custom", font, 18);
@@ -124,7 +112,6 @@ Game::Game() : state(MENU), balance(1000), isFullscreen(false), isPolish(false),
 
     sf::Texture& chipsTex = texManager.get("textures/chips/Chips.png");
 
-    // ZETONY W CZASIE OBSTAWIANIA
     chip1 = std::make_shared<ChipButton>(312.f, 260.f, 1, "1$", font, chipsTex, sf::IntRect(0, 0, 64, 72));
     chip5 = std::make_shared<ChipButton>(396.f, 260.f, 5, "5$", font, chipsTex, sf::IntRect(64, 0, 64, 72));
     chip25 = std::make_shared<ChipButton>(480.f, 260.f, 25, "25$", font, chipsTex, sf::IntRect(128, 0, 64, 72));
@@ -146,7 +133,6 @@ Game::Game() : state(MENU), balance(1000), isFullscreen(false), isPolish(false),
     bailoutBtn = std::make_shared<Button>(412.f, 500.f, 200.f, 45.f, "Recover $1000", font, 18);
     bailoutBtn->setDrawState(BETTING);
 
-    // PRZYCISKI W TRAKCIE RUNDY GRACZA
     hitBtn = std::make_shared<Button>(132.f, 690.f, 120.f, 45.f, "Hit", font, 18);
     hitBtn->setDrawState(PLAYER_TURN);
     standBtn = std::make_shared<Button>(272.f, 690.f, 120.f, 45.f, "Stand", font, 18);
@@ -154,12 +140,10 @@ Game::Game() : state(MENU), balance(1000), isFullscreen(false), isPolish(false),
     splitBtn = std::make_shared<Button>(412.f, 690.f, 120.f, 45.f, "Split", font, 18);
     splitBtn->setDrawState(PLAYER_TURN);
 
-    // PRZYCISKI UMIEJETNOSCI
     lifelineBtn = std::make_shared<Button>(842.f, 170.f, 150.f, 45.f, "Minus card -25$", font, 14);
     lifelineBtn->setDrawState(PLAYER_TURN);
     peekBtn = std::make_shared<Button>(842.f, 230.f, 150.f, 45.f, "Sneaky peeky -25$", font, 14);
     peekBtn->setDrawState(PLAYER_TURN);
-    // Inicjalizacja przycisku nowej umiejetnosci specjalnej "Zamiana kart"
     swapBtn = std::make_shared<Button>(842.f, 290.f, 150.f, 45.f, "Zamiana kart -50$", font, 14);
     swapBtn->setDrawState(PLAYER_TURN);
 
@@ -173,7 +157,6 @@ Game::Game() : state(MENU), balance(1000), isFullscreen(false), isPolish(false),
     newRoundBtn = std::make_shared<Button>(387.f, 600.f, 250.f, 50.f, "New Round", font, 20);
     newRoundBtn->setDrawState(GAME_OVER);
 
-    // PRZYCISKI USTAWIEN
     bg1Btn = std::make_shared<Button>(350.f, 160.f, 150.f, 45.f, "[ ] Bg 1", font, 18);
     bg1Btn->setDrawState(SETTINGS);
     bg2Btn = std::make_shared<Button>(524.f, 160.f, 150.f, 45.f, "[ ] Bg 2", font, 18);
@@ -195,46 +178,25 @@ Game::Game() : state(MENU), balance(1000), isFullscreen(false), isPolish(false),
 
     fullscreenBtn = std::make_shared<Button>(362.f, 430.f, 300.f, 50.f, "[ ] Fullscreen", font, 18);
     fullscreenBtn->setDrawState(SETTINGS);
-    // Inicjalizacja przyciskow wyboru jezyka w ustawieniach
     langEnBtn = std::make_shared<Button>(350.f, 530.f, 150.f, 45.f, "[ ] English", font, 18);
     langEnBtn->setDrawState(SETTINGS);
     langPlBtn = std::make_shared<Button>(524.f, 530.f, 150.f, 45.f, "[ ] Polski", font, 18);
     langPlBtn->setDrawState(SETTINGS);
-    // Usunięto resetProgressBtn
+    
     backFromSettingsBtn = std::make_shared<Button>(362.f, 610.f, 300.f, 50.f, "Back to Menu", font, 18);
     backFromSettingsBtn->setDrawState(SETTINGS);
 
-    // PRZYCISK POWROTU Z TABLICY WYNIKOW
     leaderboardBackBtn = std::make_shared<Button>(362.f, 570.f, 300.f, 50.f, "BACK", font, 20);
     leaderboardBackBtn->setDrawState(LEADERBOARD);
 
-    // Funkcje wydzielone do klas
     updateAllStaticLabels();
     updateSettingsButtonLabels();
 
-    // TALIA KRUPIERA
     dealerHandPtr = std::make_shared<Hand>(sf::Vector2f(350.f, 150.f));
-    // playerHands to członek klasy
 
-    // usunięto lokalne state
-    // usunięto lokalne resultMessage
-    // isHardMode zainicjalizowano w konstruktorze
-    // hasSkillsMode ustawione w konstruktorze
-
-
-    // currentBet, activeHandIndex, lifelineUsed, peekUsed, swapUsed, isPeekingChoiceActive, isDealerCardRevealed
-    // sa zmiennymi klasowymi zainicjalizowanymi w konstruktorze
-
-    // wydzielone do Game::updateGameplayOptionsLabels
     updateGameplayOptionsLabels();
 
-    // gameObjects jest czlonkiem klasy
-
-    // wydzielone do Game::rebuildGameObjects
-
     rebuildGameObjects();
-
-    // wydzielone do Game::toggleWindowMode
 
     uiText = sf::Text("", font, 20);
     uiText.setFillColor(sf::Color::White);
@@ -250,7 +212,6 @@ void Game::run() {
         float dt = clock.restart().asSeconds();
         sf::Event event;
 
-        // SPRAWDZANIE CZY KARTA JEST W RUCHU
         bool isAnyAnimating = false;
         for (const auto& c : dealerHandPtr->cards) if (c.isAnimating) isAnyAnimating = true;
         for (const auto& h : playerHands)
@@ -259,7 +220,6 @@ void Game::run() {
         sf::Vector2i mousePosI = sf::Mouse::getPosition(window);
         sf::Vector2f mousePos = window.mapPixelToCoords(mousePosI);
 
-        // AKTUALIZACJA PRZYCISKOW
         if (state == BETTING) {
             chip1->setEnabled(balance >= 1);
             chip5->setEnabled(balance >= 5);
@@ -290,7 +250,6 @@ void Game::run() {
                     lifelineBtn->setText(isPolish ? "Minus karta -" + std::to_string(skillCost) + "$" : "Minus card -" + std::to_string(skillCost) + "$");
                     peekBtn->setText(isPolish ? "Podglad -" + std::to_string(skillCost) + "$" : "Sneaky peeky -" + std::to_string(skillCost) + "$");
                     
-                    // Obliczenie kosztu i aktualizacja przycisku zamiany kart
                     int swapCost = std::max(1, currentBet / 2);
                     swapBtn->setText(isPolish ? "Zamiana kart -" + std::to_string(swapCost) + "$" : "Swap cards -" + std::to_string(swapCost) + "$");
 
@@ -324,7 +283,6 @@ void Game::run() {
             }
         }
 
-        // AKTUALIZACJA MYSZY NA PRZYCISKACH
         for (auto& obj : gameObjects) {
             if (obj->shouldDraw(state)) {
                 obj->updateMouse(mousePos);
@@ -340,7 +298,6 @@ void Game::run() {
                 window.setView(gameView);
             }
 
-            // WPISYWANIE TEKSTU DLA NOWEGO PROFILU
             if (state == PROFILE_CREATE && event.type == sf::Event::TextEntered) {
                 if (event.text.unicode == 8) { // BACKSPACE
                     if (!typedName.empty()) typedName.pop_back();
@@ -362,7 +319,6 @@ void Game::run() {
 
             if (mouseClicked) {
                 bool needsRebuild = false;
-                //OBSLUGA KLIKNIEC
                 for (auto& obj : gameObjects) {
                     if (obj->shouldDraw(state)) {
                         auto btn = std::dynamic_pointer_cast<Button>(obj);
@@ -524,7 +480,6 @@ void Game::run() {
                                     }
                                     else if (hasSkillsMode) {
                                         int skillCost = std::max(1, currentBet / 4);
-                                        // Zdefiniowanie kosztu zamiany kart
                                         int swapCost = std::max(1, currentBet / 2);
                                         if (isPeekingChoiceActive) {
                                             if (btn == peekDeckBtn && balance >= skillCost) {
@@ -558,7 +513,6 @@ void Game::run() {
                                             else if (btn == peekBtn && !peekUsed && balance >= skillCost && currentHand->getTotal() <= 21) {
                                                 isPeekingChoiceActive = true;
                                             }
-                                            // Obsluga uzycia umiejetnosci "Zamiana kart" - zamiana kart gracza z krupierem
                                             else if (btn == swapBtn && !swapUsed && balance >= swapCost) {
                                                 balance -= swapCost;
                                                 swapUsed = true;
@@ -670,7 +624,6 @@ void Game::run() {
             }
         }
 
-        // AKTUALIZACJA STANU GRY
         for (auto& obj : gameObjects) {
             if (obj->shouldDraw(state)) {
                 obj->update(dt);
@@ -708,7 +661,15 @@ void Game::run() {
             if (dealerTimer >= 0.8f) {
                 dealerTimer = 0.f;
                 int dealerLimit = isHardMode ? 18 : 17;
-                if (dealerHandPtr->getTotal() < dealerLimit) {
+                
+                int maxPlayerTotal = 0;
+                for (const auto& h : playerHands) {
+                    if (h->getTotal() <= 21 && h->getTotal() > maxPlayerTotal) {
+                        maxPlayerTotal = h->getTotal();
+                    }
+                }
+
+                if (dealerHandPtr->getTotal() < dealerLimit && dealerHandPtr->getTotal() <= maxPlayerTotal) {
                     dealerHandPtr->addCard(deckPtr->drawCard());
                     soundManager.play(SoundType::PLACE);
                 } else {
@@ -744,7 +705,6 @@ void Game::run() {
                                     balance += static_cast<int>(betPerHand);
                                 }
                             }
-            // ZAPIS GRY DO TABELI WYNIKOW I PLIKU SAVEGAME
             saveBalance(currentPlayerName, balance);
             updateLeaderboard(currentPlayerName, balance);
             

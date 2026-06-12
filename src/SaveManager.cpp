@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 
+// Zapisuje tabele wynikow do pliku
 void saveHighscores(const std::vector<Score>& scores) {
     std::filesystem::create_directories("Save");
     std::ofstream file("Save/highscores.txt");
@@ -14,6 +15,7 @@ void saveHighscores(const std::vector<Score>& scores) {
     }
 }
 
+// Odczytuje tabele wynikow z pliku
 std::vector<Score> loadHighscores() {
     std::vector<Score> scores;
     std::ifstream file("Save/highscores.txt");
@@ -34,6 +36,7 @@ std::vector<Score> loadHighscores() {
     return scores;
 }
 
+// Aktualizuje lub dodaje gracza do tabeli wynikow
 void updateLeaderboard(const std::string& playerName, int newBalance) {
     auto scores = loadHighscores();
     bool found = false;
@@ -50,6 +53,7 @@ void updateLeaderboard(const std::string& playerName, int newBalance) {
     saveHighscores(scores);
 }
 
+// Zapisuje ustawienia gry do pliku
 void saveGlobalSettings(const std::string& bgPath, const std::string& tablePath, const std::string& cbPath, bool isFullscreen, bool isPolish) {
     std::filesystem::create_directories("Save");
     std::ofstream file("Save/global_settings.txt");
@@ -58,6 +62,7 @@ void saveGlobalSettings(const std::string& bgPath, const std::string& tablePath,
     }
 }
 
+// Odczytuje ustawienia gry z pliku lub wczytuje domyslne
 void loadGlobalSettings(std::string& bgPath, std::string& tablePath, std::string& cbPath, bool& isFullscreen, bool& isPolish) {
     std::ifstream file("Save/global_settings.txt");
     bool success = false;
@@ -93,11 +98,13 @@ void loadGlobalSettings(std::string& bgPath, std::string& tablePath, std::string
     }
 }
 
+// Zapisuje stan konta gracza
 void saveBalance(const std::string& playerName, int balance) {
     if (playerName.empty()) return;
     updateLeaderboard(playerName, balance);
 }
 
+// Odczytuje stan konta gracza z tabeli wynikow
 void loadBalance(const std::string& playerName, int& balance) {
     auto scores = loadHighscores();
     for (const auto& s : scores) {

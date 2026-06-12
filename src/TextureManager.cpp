@@ -3,7 +3,7 @@
 
 TextureManager texManager;
 
-// Wczytuje i cache'uje teksture z podanego pliku
+// Pobiera lub wczytuje teksture z podanej sciezki
 sf::Texture& TextureManager::get(const std::string& path) {
     auto it = textures.find(path);
     if (it == textures.end()) {
@@ -17,7 +17,7 @@ sf::Texture& TextureManager::get(const std::string& path) {
     return textures[path];
 }
 
-// Tworzy i cache'uje odwrocona kolorystycznie wersje tekstury
+// Pobiera lub wczytuje odwrocona teksture
 sf::Texture& TextureManager::getInverted(const std::string& path) {
     std::string invertedPath = path + "_inverted";
     auto it = textures.find(invertedPath);
@@ -42,7 +42,7 @@ sf::Texture& TextureManager::getInverted(const std::string& path) {
     return textures[invertedPath];
 }
 
-// Czysci zaimportowane tekstury z pamieci cache
+// Czysci pamiec cache z tekstur
 void TextureManager::clear() {
     textures.clear();
 }

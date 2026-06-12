@@ -3,16 +3,16 @@
 #include <string>
 
 struct Card {
-    int value;               // WARTOSC
-    std::string rank;        // RANGA
-    std::string texturePath; // SCIEZKA DO TEKSTUR
-    sf::Sprite frontSprite;  // FRONT
-    sf::Sprite backSprite;   // REWERS
+    int value;
+    std::string rank;
+    std::string texturePath;
+    sf::Sprite frontSprite;
+    sf::Sprite backSprite;
 
-    sf::Vector2f currentPos; // AKTUALNA POZYCJA
-    sf::Vector2f targetPos;  // POZYCJA DOCELOWA
-    bool isAnimating = false;    // RUCH
-    bool isSubstracting = false; // ODEJMOWANIE
+    sf::Vector2f currentPos;
+    sf::Vector2f targetPos;
+    bool isAnimating = false;
+    bool isSubstracting = false;
 
     void updateAnimation(float dt);
 };

@@ -3,14 +3,14 @@
 #include <random>
 #include <algorithm>
 
-// Konstruktor klasy reprezentujacej talie kart
+// Inicjuje talie
 Deck::Deck() : cardBackPath("textures/cardback/cardBackRed.png") {
     deckSprite.setTexture(texManager.get(cardBackPath));
     deckSprite.setPosition(730.f, 150.f);
     deckSprite.setScale(0.15f, 0.15f);
 }
 
-// Resetuje talie, tworzac 52 nowe karty i tasujac je
+// Generuje nowa potasowana talie
 void Deck::reset() {
     isPeeking = false;
     cards.clear();
@@ -38,14 +38,14 @@ void Deck::reset() {
     shuffle();
 }
 
-// Tasuje losowo karty w talii
+// Tasuje talie
 void Deck::shuffle() {
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(cards.begin(), cards.end(), g);
 }
 
-// Wyciaga karte z gory talii
+// Zdejmuje karte z gory talii
 Card Deck::drawCard() {
     Card c = cards.back();
     cards.pop_back();
@@ -56,7 +56,7 @@ Card Deck::drawCard() {
     return c;
 }
 
-// Aktywuje podglądanie nastepnej karty w talii
+// Wlacza podglad karty
 void Deck::activatePeek(){
     if (cards.empty()) return;
     peekSprite = cards.back().frontSprite;
@@ -67,18 +67,18 @@ void Deck::activatePeek(){
     isPeeking = true;
 }
 
-// Wylacza podglądanie karty
+// Wylacza podglad karty
 void Deck::deactivatePeek(){
     isPeeking = false;
 }
 
-// Zwraca opis podgladanej karty (figure/wartosc)
+// Zwraca opis podgladanej karty
 std::string Deck::getPeekDescription() const {
     if (!isPeeking || cards.empty()) return "";
     return cards.back().rank;
 }
 
-// Rysuje talie oraz ewentualny podglad karty na oknie gry
+// Rysuje talie na ekranie
 void Deck::draw(sf::RenderWindow& window) {
     if (!cards.empty()) {
         window.draw(deckSprite);
@@ -88,13 +88,13 @@ void Deck::draw(sf::RenderWindow& window) {
     }
 }
 
-// Ustawia sciezke do tekstury rewersu kart
+// Zmienia rewers kart
 void Deck::setCardBackPath(const std::string& path) {
     cardBackPath = path;
     deckSprite.setTexture(texManager.get(cardBackPath));
 }
 
-// Okresla, czy talia powinna byc rysowana w danym stanie
+// Sprawdza czy talia jest widoczna
 bool Deck::shouldDraw(GameState state) const {
     return state != MENU && state != GAMEPLAY_OPTIONS && state != SETTINGS && state != LEADERBOARD && state != PROFILE_SELECT && state != PROFILE_CREATE && state != GAME_OVER && state != BETTING;
 }

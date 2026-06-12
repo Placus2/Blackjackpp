@@ -1,6 +1,7 @@
 #include "SoundManager.h"
 #include <iostream>
 
+// Wczytuje podstawowe dzwieki
 SoundManager::SoundManager() {
     loadSound(SoundType::FAN, "sounds/card-fan-1.ogg");
     loadSound(SoundType::PLACE, "sounds/card-place-1.ogg");
@@ -8,6 +9,7 @@ SoundManager::SoundManager() {
     loadSound(SoundType::CLICK, "sounds/chip-lay-1.ogg");
 }
 
+// Wczytuje pojedynczy dzwiek z pliku
 void SoundManager::loadSound(SoundType type, const std::string& path) {
     sf::SoundBuffer buffer;
     if (buffer.loadFromFile(path)) {
@@ -18,6 +20,7 @@ void SoundManager::loadSound(SoundType type, const std::string& path) {
     }
 }
 
+// Odtwarza wybrany dzwiek
 void SoundManager::play(SoundType type) {
     auto it = sounds.find(type);
     if (it != sounds.end()) {
