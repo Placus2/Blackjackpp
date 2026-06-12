@@ -12,6 +12,12 @@ find_package(SFML 2.6 COMPONENTS graphics window system audio REQUIRED)
 add_executable(BLACKJACKPP
     src/GameObject.h
     src/main.cpp
+    src/Game.h
+    src/Game.cpp
+    src/SaveManager.h
+    src/SaveManager.cpp
+    src/SoundManager.h
+    src/SoundManager.cpp
     src/TextureManager.h
     src/TextureManager.cpp
     src/Card.h
