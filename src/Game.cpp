@@ -255,7 +255,7 @@ void Game::run() {
 
                     lifelineBtn->setEnabled(currentHand->getTotal() > 21 && !lifelineUsed && balance >= skillCost && !isAnyAnimating && !isPeekingChoiceActive);
                     peekBtn->setEnabled(!peekUsed && balance >= skillCost && currentHand->getTotal() <= 21 && !isAnyAnimating && !isPeekingChoiceActive);
-                    swapBtn->setEnabled(!swapUsed && balance >= swapCost && !isAnyAnimating && !isPeekingChoiceActive);
+                    swapBtn->setEnabled(!swapUsed && balance >= swapCost && currentHand->cards.size() == 2 && !isAnyAnimating && !isPeekingChoiceActive);
                     
                     if (isPeekingChoiceActive) {
                         peekDeckBtn->setVisible(true);
